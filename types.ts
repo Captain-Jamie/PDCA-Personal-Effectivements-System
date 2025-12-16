@@ -1,3 +1,4 @@
+
 // Data Models based on the provided specifications
 
 // 1. Bio Clock Configuration
@@ -31,6 +32,8 @@ export type ExecutionStatus = 'completed' | 'partial' | 'changed' | 'skipped' | 
 
 export interface PlanTrack {
   content: string;
+  startTime?: string; // Optional: Specific start time (e.g., "10:15")
+  endTime?: string;   // Optional: Specific end time
   isPrimary: boolean;
   isBioLocked: boolean; // Sleep or Meals
 }
@@ -38,6 +41,8 @@ export interface PlanTrack {
 export interface DoTrack {
   status: ExecutionStatus;
   actualContent: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 export interface CheckTrack {
@@ -48,7 +53,7 @@ export interface CheckTrack {
 
 export interface TimeBlock {
   id: string;
-  time: string; // "09:00"
+  time: string; // "09:00" - The anchor time of the slot
   plan: PlanTrack;
   do: DoTrack;
   check: CheckTrack;
