@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { WeeklyPlan } from '../types';
 import { getWeeklyPlan, saveWeeklyPlan, getWeekId, getMondayOfWeek } from '../services/storage';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { Calendar, Target, TrendingUp, ChevronLeft, ChevronRight, Edit3, Save, X } from 'lucide-react';
+import { Calendar, Target, TrendingUp, ChevronLeft, ChevronRight, Edit3, Save, X, Loader2 } from 'lucide-react';
 
 interface WeeklyViewProps {
   currentDate: Date;
@@ -14,6 +14,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
   
   // Data State
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
+  const [loading, setLoading] = useState(false);
   
   // Editing State
   const [isEditing, setIsEditing] = useState(false);
@@ -25,16 +26,22 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
 
   // Load Plan when week changes
   useEffect(() => {
-    const loadedPlan = getWeeklyPlan(weekId);
-    
-    // Ensure the plan has the correct start date if it's new
-    if (!loadedPlan.startDate) {
-        loadedPlan.startDate = mondayDateStr;
-    }
-    
-    setPlan(loadedPlan);
-    setEditedPlan(loadedPlan); // Initialize edit buffer
-    setIsEditing(false);
+    const fetchPlan = async () => {
+        setLoading(true);
+        try {
+            const loadedPlan = await getWeeklyPlan(weekId);
+            // Ensure the plan has the correct start date if it's new
+            if (!loadedPlan.startDate) {
+                loadedPlan.startDate = mondayDateStr;
+            }
+            setPlan(loadedPlan);
+            setEditedPlan(loadedPlan);
+            setIsEditing(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchPlan();
   }, [weekId, mondayDateStr]);
 
   const handleWeekChange = (offset: number) => {
@@ -50,11 +57,13 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
       }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editedPlan) {
-        saveWeeklyPlan(editedPlan);
+        setLoading(true);
+        await saveWeeklyPlan(editedPlan);
         setPlan(editedPlan);
         setIsEditing(false);
+        setLoading(false);
     }
   };
 
@@ -79,7 +88,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
     });
   };
 
-  if (!plan || !editedPlan) return <div className="p-8 text-center text-slate-500">Loading Plan...</div>;
+  if (loading || !plan || !editedPlan) return <div className="p-8 flex justify-center text-slate-500"><Loader2 className="animate-spin w-8 h-8"/></div>;
 
   // Chart Mock Data (Visualization Only for MVP)
   const chartData = [

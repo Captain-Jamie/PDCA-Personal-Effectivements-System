@@ -16,12 +16,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
-      setConfig(getBioClockConfig());
+      getBioClockConfig().then((loadedConfig) => {
+        setConfig(loadedConfig);
+      });
     }
   }, [isOpen]);
 
-  const handleSave = () => {
-    saveBioClockConfig(config);
+  const handleSave = async () => {
+    await saveBioClockConfig(config);
     onClose();
     // In a full app, we might trigger a global refresh, 
     // but for now changes apply to new day creation or reload

@@ -23,19 +23,19 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
     if (isOpen) {
       setStep(1);
       setSummary(record.daySummary);
-      setTaskPool(getTaskPool());
-      // Try to load suggestion for tomorrow? For MVP we start blank or load from Weekly preset in a real app
+      // Fetch pool asynchronously
+      getTaskPool().then(setTaskPool);
     }
   }, [isOpen, record]);
 
-  const handleSummarySave = () => {
+  const handleSummarySave = async () => {
     const updated = { ...record, daySummary: summary };
-    saveDailyRecord(updated);
+    await saveDailyRecord(updated);
     onRecordUpdate(updated);
     setStep(2);
   };
 
-  const addTaskToPool = () => {
+  const addTaskToPool = async () => {
     if (!newTaskTitle.trim()) return;
     const newTask: TaskItem = {
       id: Date.now().toString(),
@@ -46,7 +46,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
     };
     const newPool = [...taskPool, newTask];
     setTaskPool(newPool);
-    saveTaskPool(newPool);
+    await saveTaskPool(newPool);
     setNewTaskTitle('');
   };
 

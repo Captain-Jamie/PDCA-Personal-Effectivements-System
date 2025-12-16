@@ -1,29 +1,71 @@
 import React, { useState, useEffect } from 'react';
 import { ViewMode, DailyRecord } from './types';
 import { getDailyRecord, saveDailyRecord } from './services/storage';
+import { supabase, isSupabaseConfigured, disconnectSupabaseConnection } from './src/supabaseClient';
 import DailyView from './components/DailyView';
 import WeeklyView from './components/WeeklyView';
 import DailyActModal from './components/DailyActModal';
 import SettingsModal from './components/SettingsModal';
-import { LayoutDashboard, CalendarDays, Settings } from 'lucide-react';
+import { Auth } from './components/Auth';
+import { LayoutDashboard, CalendarDays, Settings, LogOut, Loader2, Cloud, CloudOff } from 'lucide-react';
 
 const App: React.FC = () => {
+  const [session, setSession] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // App Data State
   const [currentDateStr, setCurrentDateStr] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [dailyRecord, setDailyRecord] = useState<DailyRecord | null>(null);
+  const [dataLoading, setDataLoading] = useState(false);
+  
+  // Modal States
   const [isActModalOpen, setIsActModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
+  // 1. Auth Init
   useEffect(() => {
-    // Load data when date changes
-    const record = getDailyRecord(currentDateStr);
-    setDailyRecord(record);
-  }, [currentDateStr]);
+    if (!isSupabaseConfigured()) {
+        setAuthLoading(false);
+        return;
+    }
 
-  const handleUpdateRecord = (updated: DailyRecord) => {
+    if (supabase) {
+        (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
+            setSession(session);
+            setAuthLoading(false);
+        });
+
+        const {
+            data: { subscription },
+        } = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }
+  }, []);
+
+  // 2. Data Loading (Async)
+  useEffect(() => {
+    const loadData = async () => {
+        setDataLoading(true);
+        try {
+            const record = await getDailyRecord(currentDateStr);
+            setDailyRecord(record);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setDataLoading(false);
+        }
+    };
+    loadData();
+  }, [currentDateStr, session]); // Reload when date OR session changes
+
+  const handleUpdateRecord = async (updated: DailyRecord) => {
     setDailyRecord(updated);
-    // Persist immediately managed in component or here, let's keep it here for safety
-    saveDailyRecord(updated);
+    await saveDailyRecord(updated);
   };
 
   const handleDaySwitch = (direction: 'prev' | 'next') => {
@@ -32,27 +74,44 @@ const App: React.FC = () => {
     setCurrentDateStr(d.toISOString().split('T')[0]);
   };
 
-  const startNewDay = (nextDayPrimaryTasks: [string, string]) => {
-     // Close modal
+  const startNewDay = async (nextDayPrimaryTasks: [string, string]) => {
      setIsActModalOpen(false);
      
-     // Calculate tomorrow's date
      const d = new Date(currentDateStr);
      d.setDate(d.getDate() + 1);
      const nextDateStr = d.toISOString().split('T')[0];
 
-     // Pre-initialize tomorrow's record with the selected tasks
-     const existingNext = getDailyRecord(nextDateStr);
+     // Use async fetch for the next day
+     const existingNext = await getDailyRecord(nextDateStr);
      const updatedNext = {
          ...existingNext,
          primaryTasks: nextDayPrimaryTasks
      };
-     saveDailyRecord(updatedNext);
+     await saveDailyRecord(updatedNext);
 
-     // Switch view to tomorrow
      setCurrentDateStr(nextDateStr);
      setDailyRecord(updatedNext);
   };
+
+  const handleLogout = async () => {
+      if(supabase) await (supabase.auth as any).signOut();
+  };
+
+  const handleDisconnect = () => {
+      if (confirm("Disconnect from cloud database and switch to local mode?")) {
+          disconnectSupabaseConnection();
+      }
+  };
+
+  // -- Render Logic --
+
+  if (authLoading) return <div className="h-screen flex items-center justify-center text-slate-400"><Loader2 className="animate-spin mr-2"/> Loading PDCA Flow...</div>;
+
+  // If Supabase is configured BUT no session, force Auth (Guard).
+  // Exception: If showAuthModal is manually open (e.g. from local mode), we render it later.
+  if (isSupabaseConfigured() && !session && !showAuthModal) {
+      return <Auth />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -95,6 +154,29 @@ const App: React.FC = () => {
                  </div>
              )}
              
+             {/* Cloud / Auth Button */}
+             {!isSupabaseConfigured() ? (
+                 <button 
+                    onClick={() => setShowAuthModal(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 text-sm font-bold shadow-sm transition-all"
+                 >
+                    <Cloud className="w-4 h-4" /> Connect Cloud
+                 </button>
+             ) : (
+                 session ? (
+                    <button 
+                        onClick={handleLogout}
+                        className="p-2 hover:bg-red-50 hover:text-red-600 rounded-full text-slate-500 transition-colors"
+                        title={`Signed in as ${session.user.email}`}
+                    >
+                        <LogOut className="w-5 h-5" />
+                    </button>
+                 ) : (
+                    // Configured but not signed in (Edge case handled by guard, but good for safety)
+                    <button onClick={() => setShowAuthModal(true)} className="text-sm font-bold text-brand-600">Log In</button>
+                 )
+             )}
+
              <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
@@ -102,24 +184,39 @@ const App: React.FC = () => {
              >
                 <Settings className="w-5 h-5" />
              </button>
+
+             {/* Hidden disconnect option for debug/reset */}
+             {isSupabaseConfigured() && (
+                 <button onClick={handleDisconnect} className="p-2 text-slate-300 hover:text-red-400" title="Disconnect Cloud Config">
+                    <CloudOff className="w-4 h-4"/>
+                 </button>
+             )}
           </div>
         </div>
       </nav>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-4 md:p-6 pb-24">
-         {viewMode === 'daily' && dailyRecord && (
-            <div className="animate-fade-in">
-              <DailyView 
-                 record={dailyRecord} 
-                 onUpdateRecord={handleUpdateRecord}
-                 onOpenAct={() => setIsActModalOpen(true)}
-              />
-            </div>
-         )}
+         {dataLoading ? (
+             <div className="flex justify-center items-center h-64 text-slate-400">
+                 <Loader2 className="w-8 h-8 animate-spin" />
+             </div>
+         ) : (
+             <>
+                {viewMode === 'daily' && dailyRecord && (
+                    <div className="animate-fade-in">
+                    <DailyView 
+                        record={dailyRecord} 
+                        onUpdateRecord={handleUpdateRecord}
+                        onOpenAct={() => setIsActModalOpen(true)}
+                    />
+                    </div>
+                )}
 
-         {viewMode === 'weekly' && (
-            <WeeklyView currentDate={new Date(currentDateStr)} />
+                {viewMode === 'weekly' && (
+                    <WeeklyView currentDate={new Date(currentDateStr)} />
+                )}
+             </>
          )}
       </main>
 
@@ -138,6 +235,11 @@ const App: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
+
+      {/* Auth Modal for Manual Connection/Login */}
+      {showAuthModal && (
+          <Auth onClose={() => setShowAuthModal(false)} />
+      )}
     </div>
   );
 };
