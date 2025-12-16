@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured, setupSupabaseConnection } from '../src/supabaseClient';
-import { LayoutDashboard, LogIn, UserPlus, Loader2, CloudCog, X } from 'lucide-react';
+import { LayoutDashboard, LogIn, UserPlus, Loader2, CloudCog, X, ShieldCheck } from 'lucide-react';
+import { REGISTRATION_INVITE_CODE } from '../constants';
 
 interface AuthProps {
     onClose?: () => void; // Optional prop to support using Auth as a modal
@@ -12,6 +13,7 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
   // Auth State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   
   // Config State
@@ -26,6 +28,13 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
+
+    // Invitation Code Check for Signup
+    if (mode === 'signup' && inviteCode !== REGISTRATION_INVITE_CODE) {
+        setError(true);
+        setMsg("邀请码错误，无法注册。");
+        return;
+    }
 
     setLoading(true);
     setMsg('');
@@ -158,6 +167,22 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                             placeholder="••••••••"
                             />
                         </div>
+
+                        {mode === 'signup' && (
+                             <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+                                    <ShieldCheck className="w-4 h-4 text-brand-500"/> 邀请码 (防止恶意注册)
+                                </label>
+                                <input
+                                type="text"
+                                required
+                                value={inviteCode}
+                                onChange={(e) => setInviteCode(e.target.value)}
+                                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+                                placeholder="请输入邀请码"
+                                />
+                            </div>
+                        )}
 
                         {msg && (
                             <div className={`p-3 rounded-lg text-sm ${error ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { WeeklyPlan } from '../types';
-import { getWeeklyPlan, saveWeeklyPlan, getWeekId, getMondayOfWeek } from '../services/storage';
+import { WeeklyPlan, DailyRecord } from '../types';
+import { getWeeklyPlan, saveWeeklyPlan, getWeekId, getMondayOfWeek, getDailyRecord } from '../services/storage';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { Calendar, Target, TrendingUp, ChevronLeft, ChevronRight, Edit3, Save, X, Loader2 } from 'lucide-react';
+import { Calendar, Target, TrendingUp, ChevronLeft, ChevronRight, Edit3, Save, X, Loader2, BookOpen, AlertCircle } from 'lucide-react';
 
 interface WeeklyViewProps {
   currentDate: Date;
@@ -19,6 +19,9 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
   // Editing State
   const [isEditing, setIsEditing] = useState(false);
   const [editedPlan, setEditedPlan] = useState<WeeklyPlan | null>(null);
+
+  // Detail Modal State
+  const [selectedDayDetail, setSelectedDayDetail] = useState<DailyRecord | null>(null);
 
   // Derived state
   const weekId = getWeekId(displayDate);
@@ -88,6 +91,12 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
     });
   };
 
+  const loadDayDetail = async (dateStr: string) => {
+      // Fetch the actual daily record to see summary and checks
+      const record = await getDailyRecord(dateStr);
+      setSelectedDayDetail(record);
+  };
+
   if (loading || !plan || !editedPlan) return <div className="p-8 flex justify-center text-slate-500"><Loader2 className="animate-spin w-8 h-8"/></div>;
 
   // Chart Mock Data (Visualization Only for MVP)
@@ -113,7 +122,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in relative">
       {/* Header & Controls */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-6">
         
@@ -192,7 +201,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
       {/* 7-Day Planning Matrix */}
       <div>
          <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-             <Calendar className="w-5 h-5 text-brand-600" /> 每日主要任务 (预设)
+             <Calendar className="w-5 h-5 text-brand-600" /> 每日复盘与计划
          </h3>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {weekDates.map((dateStr, idx) => {
@@ -205,8 +214,19 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                 return (
                     <div key={dateStr} className={`p-4 rounded-xl border flex flex-col h-full ${isToday ? 'border-brand-500 bg-brand-50 shadow-md ring-1 ring-brand-500' : 'border-slate-200 bg-white shadow-sm'}`}>
                         <div className="flex justify-between items-center mb-3">
-                            <span className={`font-bold ${isToday ? 'text-brand-800' : 'text-slate-700'}`}>{dayName}</span>
-                            <span className="text-xs text-slate-400 font-mono">{dateStr.slice(5)}</span>
+                            <div>
+                                <span className={`font-bold ${isToday ? 'text-brand-800' : 'text-slate-700'}`}>{dayName}</span>
+                                <div className="text-xs text-slate-400 font-mono">{dateStr.slice(5)}</div>
+                            </div>
+                            {!isEditing && (
+                                <button 
+                                    onClick={() => loadDayDetail(dateStr)}
+                                    className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                                    title="查看详情与复盘"
+                                >
+                                    <BookOpen className="w-4 h-4"/>
+                                </button>
+                            )}
                         </div>
                         
                         <div className="space-y-2 flex-1">
@@ -262,6 +282,55 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
             </div>
          </div>
       </div>
+
+      {/* Day Detail Modal */}
+      {selectedDayDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[1px]" onClick={() => setSelectedDayDetail(null)}>
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col mx-4 animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                  <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
+                      <div>
+                          <h3 className="font-bold text-lg text-slate-800">{selectedDayDetail.date} 详情</h3>
+                          <div className="flex gap-2 text-xs text-slate-500 mt-1">
+                              <span>任务: {selectedDayDetail.primaryTasks.filter(Boolean).join(' & ') || '无'}</span>
+                          </div>
+                      </div>
+                      <button onClick={() => setSelectedDayDetail(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500"><X className="w-5 h-5"/></button>
+                  </div>
+                  <div className="p-6 overflow-y-auto space-y-6">
+                      
+                      {/* Summary Section */}
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                          <h4 className="text-blue-900 font-bold mb-2 flex items-center gap-2"><BookOpen className="w-4 h-4"/> 每日总结</h4>
+                          <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
+                              {selectedDayDetail.daySummary || <span className="text-slate-400 italic">未填写总结</span>}
+                          </p>
+                      </div>
+
+                      {/* Check Log Section */}
+                      <div>
+                          <h4 className="text-slate-800 font-bold mb-3 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-brand-500"/> 过程检查记录 (Check Logs)</h4>
+                          <div className="space-y-3">
+                              {selectedDayDetail.timeBlocks.filter(b => b.check.comment || b.check.efficiency).length > 0 ? (
+                                  selectedDayDetail.timeBlocks.filter(b => b.check.comment || b.check.efficiency).map(block => (
+                                      <div key={block.id} className="flex gap-3 text-sm border-b border-slate-50 pb-2">
+                                          <div className="font-mono text-slate-500 font-bold w-12">{block.time}</div>
+                                          <div className="flex-1">
+                                              <div className="text-slate-800">{block.check.comment}</div>
+                                              {block.check.efficiency && (
+                                                  <div className="text-xs text-slate-400 mt-1">效率评价: {block.check.efficiency}</div>
+                                              )}
+                                          </div>
+                                      </div>
+                                  ))
+                              ) : (
+                                  <div className="text-slate-400 text-sm italic text-center py-4">无检查记录</div>
+                              )}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* Visualization (Placeholder for now) */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 opacity-60 pointer-events-none grayscale">

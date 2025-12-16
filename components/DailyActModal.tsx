@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DailyRecord, TaskItem } from '../types';
+import { DailyRecord, TaskItem, EfficiencyRating } from '../types';
 import { getTaskPool, saveTaskPool, saveDailyRecord } from '../services/storage';
 import { Plus, ArrowRight, Save, X, RotateCcw } from 'lucide-react';
 
@@ -19,14 +19,60 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
   const [nextP2, setNextP2] = useState('');
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
+  // Metrics State
+  const [metrics, setMetrics] = useState({ completionRate: 0, efficiencyLabel: '未知' });
+
   useEffect(() => {
     if (isOpen) {
       setStep(1);
       setSummary(record.daySummary);
+      calculateMetrics();
       // Fetch pool asynchronously
       getTaskPool().then(setTaskPool);
     }
   }, [isOpen, record]);
+
+  const calculateMetrics = () => {
+      // 1. Completion Rate: (Completed + Partial) / Total Planned Blocks (that are not empty or bio locked)
+      let totalPlanned = 0;
+      let completedPoints = 0;
+
+      // 2. Efficiency: Average of High(3)/Normal(2)/Low(1)
+      let efficiencySum = 0;
+      let efficiencyCount = 0;
+
+      record.timeBlocks.forEach(block => {
+          // Skip bio locked
+          if (block.plan.isBioLocked) return;
+          
+          if (block.plan.content) {
+              totalPlanned++;
+              if (block.do.status === 'completed') completedPoints += 1;
+              else if (block.do.status === 'partial') completedPoints += 0.5;
+              else if (block.do.status === 'changed') completedPoints += 0.8; // Flexible execution counts
+          }
+
+          if (block.check.efficiency) {
+              efficiencyCount++;
+              if (block.check.efficiency === 'high') efficiencySum += 3;
+              else if (block.check.efficiency === 'normal') efficiencySum += 2;
+              else if (block.check.efficiency === 'low') efficiencySum += 1;
+          }
+      });
+
+      const rate = totalPlanned > 0 ? Math.round((completedPoints / totalPlanned) * 100) : 0;
+      
+      let avgEff = 0;
+      let effLabel = '无数据';
+      if (efficiencyCount > 0) {
+          avgEff = efficiencySum / efficiencyCount;
+          if (avgEff >= 2.5) effLabel = '高';
+          else if (avgEff >= 1.5) effLabel = '正常';
+          else effLabel = '低';
+      }
+
+      setMetrics({ completionRate: rate, efficiencyLabel: effLabel });
+  };
 
   const handleSummarySave = async () => {
     const updated = { ...record, daySummary: summary };
@@ -81,10 +127,14 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
           {step === 1 && (
             <div className="space-y-6 animate-fade-in">
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                 <h3 className="font-semibold text-blue-900 mb-2">今日检查指标</h3>
+                 <h3 className="font-semibold text-blue-900 mb-2">今日检查指标 (实时计算)</h3>
                  <div className="flex gap-4 text-sm text-blue-800">
-                    <div className="px-3 py-1 bg-white rounded-md shadow-sm">效率: <span className="font-bold">正常</span></div>
-                    <div className="px-3 py-1 bg-white rounded-md shadow-sm">完成率: <span className="font-bold">85%</span></div>
+                    <div className="px-3 py-1 bg-white rounded-md shadow-sm">
+                        平均效率: <span className={`font-bold ${metrics.efficiencyLabel === '高' ? 'text-green-600' : metrics.efficiencyLabel === '低' ? 'text-red-500' : 'text-blue-600'}`}>{metrics.efficiencyLabel}</span>
+                    </div>
+                    <div className="px-3 py-1 bg-white rounded-md shadow-sm">
+                        计划完成率: <span className="font-bold">{metrics.completionRate}%</span>
+                    </div>
                  </div>
               </div>
 

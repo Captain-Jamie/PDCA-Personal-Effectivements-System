@@ -7,7 +7,7 @@ import WeeklyView from './components/WeeklyView';
 import DailyActModal from './components/DailyActModal';
 import SettingsModal from './components/SettingsModal';
 import { Auth } from './components/Auth';
-import { LayoutDashboard, CalendarDays, Settings, LogOut, Loader2, Cloud } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, LogOut, Loader2, Cloud, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -106,48 +106,66 @@ const App: React.FC = () => {
       return <Auth />;
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Navigation Bar */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-40 px-4 md:px-6 py-3 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-             <div className="bg-brand-600 rounded-lg p-1.5">
-               <LayoutDashboard className="w-5 h-5 text-white" />
-             </div>
-             <h1 className="font-bold text-xl tracking-tight hidden md:block">PDCA<span className="text-brand-600">Flow</span></h1>
-          </div>
-
-          <div className="flex bg-slate-100 p-1 rounded-lg">
+  // --- Components for Navigation ---
+  
+  const ControlsGroup = () => (
+      <>
+        {/* View Switcher */}
+        <div className="flex bg-slate-100 p-1 rounded-lg">
              <button 
                 onClick={() => setViewMode('daily')}
                 className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'daily' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
              >
-                <LayoutDashboard className="w-4 h-4" /> 日视图
+                <LayoutDashboard className="w-4 h-4" /> 日
              </button>
              <button 
                 onClick={() => setViewMode('weekly')}
                 className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'weekly' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
              >
-                <CalendarDays className="w-4 h-4" /> 周视图
+                <CalendarDays className="w-4 h-4" /> 周
              </button>
+        </div>
+
+        {/* Date Navigator */}
+        {viewMode === 'daily' && (
+            <div className="flex items-center bg-white border border-slate-200 rounded-lg px-1 py-1 shadow-sm">
+                <button onClick={() => handleDaySwitch('prev')} className="p-1 hover:bg-slate-100 rounded text-slate-500">
+                    <ChevronLeft className="w-5 h-5"/>
+                </button>
+                <input 
+                    type="date"
+                    value={currentDateStr}
+                    onChange={(e) => e.target.value && setCurrentDateStr(e.target.value)}
+                    className="mx-1 text-sm font-mono font-medium text-slate-700 border-none outline-none bg-transparent p-0 w-[110px] text-center cursor-pointer hover:bg-slate-50 rounded"
+                />
+                <button onClick={() => handleDaySwitch('next')} className="p-1 hover:bg-slate-100 rounded text-slate-500">
+                    <ChevronRight className="w-5 h-5"/>
+                </button>
+            </div>
+        )}
+      </>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* 1. Primary Header (Logo + Account) */}
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-40 px-4 py-3 shadow-sm">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          
+          <div className="flex items-center gap-2 md:gap-3">
+             <div className="bg-brand-600 rounded-lg p-1.5">
+               <LayoutDashboard className="w-5 h-5 text-white" />
+             </div>
+             <h1 className="font-bold text-lg md:text-xl tracking-tight">PDCA<span className="text-brand-600">Flow</span></h1>
           </div>
 
+          {/* Desktop Controls (Hidden on Mobile) */}
+          <div className="hidden md:flex items-center gap-4">
+               <ControlsGroup />
+          </div>
+
+          {/* User & Settings Actions */}
           <div className="flex items-center gap-2 md:gap-4">
-             {viewMode === 'daily' && (
-                 <div className="flex items-center bg-white border border-slate-200 rounded-lg px-1 py-1 shadow-sm mr-2">
-                    <button onClick={() => handleDaySwitch('prev')} className="p-1 hover:bg-slate-100 rounded text-slate-500 text-lg font-bold">‹</button>
-                    <input 
-                      type="date"
-                      value={currentDateStr}
-                      onChange={(e) => e.target.value && setCurrentDateStr(e.target.value)}
-                      className="mx-1 text-sm font-mono font-medium text-slate-700 border-none outline-none bg-transparent p-0 w-[110px] text-center cursor-pointer hover:bg-slate-50 rounded"
-                    />
-                    <button onClick={() => handleDaySwitch('next')} className="p-1 hover:bg-slate-100 rounded text-slate-500 text-lg font-bold">›</button>
-                 </div>
-             )}
-             
-             {/* Auth Status / Button */}
              {isSupabaseConfigured() && (
                  session ? (
                     <button 
@@ -172,6 +190,11 @@ const App: React.FC = () => {
           </div>
         </div>
       </nav>
+
+      {/* 2. Secondary Header (Mobile Only) - Controls */}
+      <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 shadow-sm sticky top-[60px] z-30 flex justify-between items-center gap-2 overflow-x-auto">
+          <ControlsGroup />
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-4 md:p-6 pb-24">
