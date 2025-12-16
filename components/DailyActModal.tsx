@@ -68,8 +68,8 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
                 <RotateCcw className="w-5 h-5 text-brand-600" />
              </div>
              <div>
-                <h2 className="text-xl font-bold text-slate-800">Daily Review & Act</h2>
-                <p className="text-xs text-slate-500">Close today's loop and prepare for tomorrow.</p>
+                <h2 className="text-xl font-bold text-slate-800">每日复盘与行动 (Review & Act)</h2>
+                <p className="text-xs text-slate-500">完成今日闭环，准备明日计划。</p>
              </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
@@ -81,20 +81,20 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
           {step === 1 && (
             <div className="space-y-6 animate-fade-in">
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                 <h3 className="font-semibold text-blue-900 mb-2">Today's Check Metrics</h3>
+                 <h3 className="font-semibold text-blue-900 mb-2">今日检查指标</h3>
                  <div className="flex gap-4 text-sm text-blue-800">
-                    <div className="px-3 py-1 bg-white rounded-md shadow-sm">Efficiency: <span className="font-bold">Normal</span></div>
-                    <div className="px-3 py-1 bg-white rounded-md shadow-sm">Completion: <span className="font-bold">85%</span></div>
+                    <div className="px-3 py-1 bg-white rounded-md shadow-sm">效率: <span className="font-bold">正常</span></div>
+                    <div className="px-3 py-1 bg-white rounded-md shadow-sm">完成率: <span className="font-bold">85%</span></div>
                  </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Today's Summary</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">今日总结</label>
                 <textarea 
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
                   className="w-full h-48 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none text-slate-700"
-                  placeholder="How was your day? What did you achieve? What needs improvement?"
+                  placeholder="今天过得怎么样？完成了什么？有什么需要改进的？"
                 />
               </div>
               <div className="flex justify-end">
@@ -102,7 +102,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
                   onClick={handleSummarySave}
                   className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 font-medium transition-colors shadow-lg shadow-brand-200"
                 >
-                  Next: Plan Tomorrow <ArrowRight className="w-4 h-4" />
+                  下一步：计划明日 <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -113,7 +113,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
               {/* Left: Backlog */}
               <div className="flex-1 flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
                 <div className="p-4 border-b border-slate-200 bg-white">
-                  <h3 className="font-bold text-slate-800">Task Pool (Backlog)</h3>
+                  <h3 className="font-bold text-slate-800">任务池 (待办)</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                   {taskPool.filter(t => t.status !== 'done').map(task => (
@@ -125,14 +125,14 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
                       <Plus className="w-4 h-4 text-brand-400 opacity-0 group-hover:opacity-100" />
                     </div>
                   ))}
-                  {taskPool.length === 0 && <div className="text-center text-slate-400 text-sm py-4">No pending tasks.</div>}
+                  {taskPool.length === 0 && <div className="text-center text-slate-400 text-sm py-4">暂无待办任务。</div>}
                 </div>
                 <div className="p-3 border-t border-slate-200 bg-white flex gap-2">
                   <input 
                     type="text" 
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="Quick add new task..."
+                    placeholder="快速添加新任务..."
                     className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-brand-500"
                     onKeyDown={(e) => e.key === 'Enter' && addTaskToPool()}
                   />
@@ -145,25 +145,25 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
               {/* Right: Tomorrow */}
               <div className="flex-1 flex flex-col border border-brand-200 rounded-xl overflow-hidden bg-brand-50/30">
                  <div className="p-4 border-b border-brand-100 bg-white">
-                  <h3 className="font-bold text-brand-900">Tomorrow's Core Focus</h3>
-                  <p className="text-xs text-brand-600 mt-1">Select 2 Principal Contradictions</p>
+                  <h3 className="font-bold text-brand-900">明日核心聚焦</h3>
+                  <p className="text-xs text-brand-600 mt-1">选择 2 个主要矛盾</p>
                 </div>
                 <div className="p-6 space-y-6 flex-1">
                    <div>
-                      <label className="block text-xs font-bold text-brand-800 uppercase tracking-wide mb-2">Priority 1</label>
+                      <label className="block text-xs font-bold text-brand-800 uppercase tracking-wide mb-2">优先级 1 (Priority 1)</label>
                       <input 
                         value={nextP1}
                         onChange={(e) => setNextP1(e.target.value)}
-                        placeholder="Select from left or type..."
+                        placeholder="从左侧选择或输入..."
                         className="w-full p-4 border border-brand-200 rounded-xl shadow-sm focus:ring-2 focus:ring-brand-500 outline-none text-brand-900 font-medium"
                       />
                    </div>
                    <div>
-                      <label className="block text-xs font-bold text-brand-800 uppercase tracking-wide mb-2">Priority 2</label>
+                      <label className="block text-xs font-bold text-brand-800 uppercase tracking-wide mb-2">优先级 2 (Priority 2)</label>
                       <input 
                         value={nextP2}
                         onChange={(e) => setNextP2(e.target.value)}
-                        placeholder="Select from left or type..."
+                        placeholder="从左侧选择或输入..."
                         className="w-full p-4 border border-brand-200 rounded-xl shadow-sm focus:ring-2 focus:ring-brand-500 outline-none text-brand-900 font-medium"
                       />
                    </div>
@@ -174,7 +174,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
                     disabled={!nextP1}
                     className="w-full py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 font-bold shadow-lg shadow-brand-200 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                   >
-                    <Save className="w-4 h-4" /> Finalize & Start New Day
+                    <Save className="w-4 h-4" /> 定稿并开启新的一天
                   </button>
                 </div>
               </div>

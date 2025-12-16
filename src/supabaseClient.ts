@@ -30,7 +30,7 @@ export const isSupabaseConfigured = () => !!supabase;
 // Helper to set configuration at runtime
 export const setupSupabaseConnection = (url: string, key: string) => {
     if (!url || !url.startsWith('http')) {
-        alert("Invalid URL. Please enter a valid Supabase URL starting with http:// or https://");
+        alert("无效的 URL。请输入以 http:// 或 https:// 开头的有效 Supabase URL");
         return;
     }
     localStorage.setItem('pdca_supabase_url', url);

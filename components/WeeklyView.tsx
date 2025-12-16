@@ -92,16 +92,16 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
 
   // Chart Mock Data (Visualization Only for MVP)
   const chartData = [
-    { name: 'Mon', completed: 0, planned: 100 },
-    { name: 'Tue', completed: 0, planned: 100 },
-    { name: 'Wed', completed: 0, planned: 100 },
-    { name: 'Thu', completed: 0, planned: 100 },
-    { name: 'Fri', completed: 0, planned: 100 },
-    { name: 'Sat', completed: 0, planned: 50 },
-    { name: 'Sun', completed: 0, planned: 30 },
+    { name: '周一', completed: 0, planned: 100 },
+    { name: '周二', completed: 0, planned: 100 },
+    { name: '周三', completed: 0, planned: 100 },
+    { name: '周四', completed: 0, planned: 100 },
+    { name: '周五', completed: 0, planned: 100 },
+    { name: '周六', completed: 0, planned: 50 },
+    { name: '周日', completed: 0, planned: 30 },
   ];
 
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
   
   // Generate date objects for the current view week
   const weekDates: string[] = [];
@@ -124,7 +124,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                     <ChevronLeft className="w-5 h-5" />
                 </button>
                 
-                <div className="text-center relative group cursor-pointer" title="Click to select a date to jump to">
+                <div className="text-center relative group cursor-pointer" title="点击选择日期跳转">
                     <input 
                         type="date"
                         value={mondayDateStr}
@@ -132,9 +132,9 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                         className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
                     />
                     <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 justify-center group-hover:text-brand-600 transition-colors">
-                        Week {weekId.split('-W')[1]} <span className="text-lg font-normal text-slate-400">({weekId.split('-W')[0]})</span>
+                         第 {weekId.split('-W')[1]} 周 <span className="text-lg font-normal text-slate-400">({weekId.split('-W')[0]})</span>
                     </h2>
-                    <p className="text-xs text-slate-400 font-mono mt-1 group-hover:text-brand-400">{mondayDateStr} to {weekDates[6]}</p>
+                    <p className="text-xs text-slate-400 font-mono mt-1 group-hover:text-brand-400">{mondayDateStr} 至 {weekDates[6]}</p>
                 </div>
 
                 <button onClick={() => handleWeekChange(1)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600">
@@ -148,7 +148,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                         onClick={() => setIsEditing(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium transition-colors shadow-sm"
                     >
-                        <Edit3 className="w-4 h-4" /> Edit Plan
+                        <Edit3 className="w-4 h-4" /> 编辑计划
                     </button>
                 ) : (
                     <>
@@ -156,13 +156,13 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                             onClick={handleCancel}
                             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium transition-colors"
                         >
-                            <X className="w-4 h-4" /> Cancel
+                            <X className="w-4 h-4" /> 取消
                         </button>
                         <button 
                             onClick={handleSave}
                             className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium transition-colors shadow-md"
                         >
-                            <Save className="w-4 h-4" /> Save Plan
+                            <Save className="w-4 h-4" /> 保存计划
                         </button>
                     </>
                 )}
@@ -173,17 +173,17 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
                 <span className="font-bold text-slate-700 whitespace-nowrap flex items-center gap-2">
-                    <Target className="w-5 h-5 text-brand-500" /> Weekly Focus Theme:
+                    <Target className="w-5 h-5 text-brand-500" /> 本周核心主题 (Theme):
                 </span>
                 {isEditing ? (
                     <input 
                         value={editedPlan.theme}
                         onChange={(e) => setEditedPlan({...editedPlan, theme: e.target.value})}
-                        placeholder="e.g. Foundation Week, High Impact Week..."
+                        placeholder="例如：基础建设周、高产出周..."
                         className="flex-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none"
                     />
                 ) : (
-                    <span className="text-lg text-slate-800 font-medium">{plan.theme || <span className="text-slate-400 italic">No theme set</span>}</span>
+                    <span className="text-lg text-slate-800 font-medium">{plan.theme || <span className="text-slate-400 italic">未设置主题</span>}</span>
                 )}
             </div>
         </div>
@@ -192,7 +192,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
       {/* 7-Day Planning Matrix */}
       <div>
          <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-             <Calendar className="w-5 h-5 text-brand-600" /> Daily Principal Tasks (Presets)
+             <Calendar className="w-5 h-5 text-brand-600" /> 每日主要任务 (预设)
          </h3>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {weekDates.map((dateStr, idx) => {
@@ -217,11 +217,11 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                                     <input 
                                         value={tasks[0]}
                                         onChange={(e) => updatePreset(dateStr, 0, e.target.value)}
-                                        placeholder="Primary Task 1..."
+                                        placeholder="主要任务 1..."
                                         className="w-full text-sm border border-slate-200 rounded px-2 py-1 focus:ring-1 focus:ring-brand-500 outline-none"
                                     />
                                 ) : (
-                                    <span className={`text-sm truncate ${tasks[0] ? 'text-slate-700' : 'text-slate-300 italic'}`}>{tasks[0] || 'Empty'}</span>
+                                    <span className={`text-sm truncate ${tasks[0] ? 'text-slate-700' : 'text-slate-300 italic'}`}>{tasks[0] || '空'}</span>
                                 )}
                             </div>
 
@@ -232,11 +232,11 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                                     <input 
                                         value={tasks[1]}
                                         onChange={(e) => updatePreset(dateStr, 1, e.target.value)}
-                                        placeholder="Primary Task 2..."
+                                        placeholder="主要任务 2..."
                                         className="w-full text-sm border border-slate-200 rounded px-2 py-1 focus:ring-1 focus:ring-brand-500 outline-none"
                                     />
                                 ) : (
-                                    <span className={`text-sm truncate ${tasks[1] ? 'text-slate-700' : 'text-slate-300 italic'}`}>{tasks[1] || 'Empty'}</span>
+                                    <span className={`text-sm truncate ${tasks[1] ? 'text-slate-700' : 'text-slate-300 italic'}`}>{tasks[1] || '空'}</span>
                                 )}
                             </div>
                         </div>
@@ -247,17 +247,17 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
             {/* Weekly Summary / Goal Card */}
             <div className="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex flex-col">
                 <div className="flex items-center gap-2 mb-3 text-slate-500 font-bold">
-                    <Target className="w-5 h-5" /> Weekly Goal
+                    <Target className="w-5 h-5" /> 本周目标 / 备注
                 </div>
                 {isEditing ? (
                     <textarea 
                          value={editedPlan.weeklySummary}
                          onChange={(e) => setEditedPlan({...editedPlan, weeklySummary: e.target.value})}
-                         placeholder="What is the main outcome for this week?"
+                         placeholder="本周的主要产出是什么？"
                          className="flex-1 w-full bg-white border border-slate-300 rounded-lg p-2 text-sm focus:ring-1 focus:ring-brand-500 outline-none resize-none"
                     />
                 ) : (
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{plan.weeklySummary || "No specific weekly goal set."}</p>
+                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{plan.weeklySummary || "未设置具体目标。"}</p>
                 )}
             </div>
          </div>
@@ -267,7 +267,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 opacity-60 pointer-events-none grayscale">
         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-brand-600" />
-            Commitment Fulfillment Rate (Coming Soon)
+            承诺达成率 (开发中)
         </h3>
         <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -275,8 +275,8 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                    <Bar dataKey="planned" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Planned" stackId="a" />
-                    <Bar dataKey="completed" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="Completed" />
+                    <Bar dataKey="planned" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="计划值" stackId="a" />
+                    <Bar dataKey="completed" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="完成值" />
                 </BarChart>
             </ResponsiveContainer>
         </div>

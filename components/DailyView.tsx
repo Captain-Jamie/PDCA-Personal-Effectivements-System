@@ -9,6 +9,21 @@ interface DailyViewProps {
   onOpenAct: () => void;
 }
 
+const STATUS_LABELS: Record<ExecutionStatus, string> = {
+    'completed': '完成',
+    'partial': '部分',
+    'changed': '变更',
+    'skipped': '跳过',
+    'none': '未设',
+};
+
+const EFFICIENCY_LABELS: Record<string, string> = {
+    'high': '高',
+    'normal': '中',
+    'low': '低',
+    'null': '无'
+};
+
 const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct }) => {
   const [selectedBlock, setSelectedBlock] = useState<TimeBlock | null>(null);
   
@@ -102,6 +117,15 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
      return 'bg-slate-200';
   };
 
+  const getEditTitle = (type: string) => {
+      switch(type) {
+          case 'plan': return '计划 (Plan)';
+          case 'do': return '执行 (Do)';
+          case 'check': return '检查 (Check)';
+          default: return type;
+      }
+  };
+
   return (
     <div className="space-y-6">
       {/* Principal Tasks Banner */}
@@ -111,12 +135,12 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
         </div>
         
         <div className="relative z-10 flex justify-between items-start mb-3">
-             <h3 className="text-brand-100 text-sm font-semibold uppercase tracking-wider">Today's Principal Contradictions</h3>
+             <h3 className="text-brand-100 text-sm font-semibold uppercase tracking-wider">今日主要矛盾 (Core Focus)</h3>
              {!isEditingPrincipal ? (
                  <button 
                     onClick={() => setIsEditingPrincipal(true)}
                     className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white"
-                    title="Edit Principal Tasks"
+                    title="编辑主要任务"
                  >
                     <Edit3 className="w-4 h-4" />
                  </button>
@@ -124,7 +148,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                 <button 
                     onClick={savePrincipalTasks}
                     className="p-1.5 bg-green-500/80 hover:bg-green-500 rounded-lg transition-colors text-white shadow-sm"
-                    title="Save Tasks"
+                    title="保存"
                  >
                     <Save className="w-4 h-4" />
                  </button>
@@ -136,7 +160,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
              record.primaryTasks.map((task, i) => (
                 <div key={i} className="bg-white/10 backdrop-blur-sm border border-white/20 p-4 rounded-lg flex items-center gap-3 min-h-[4rem]">
                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold">{i+1}</div>
-                   <span className="font-medium text-lg truncate w-full" title={task}>{task || <span className="text-white/40 italic">Not set (Click edit icon)</span>}</span>
+                   <span className="font-medium text-lg truncate w-full" title={task}>{task || <span className="text-white/40 italic">未设置 (点击编辑图标)</span>}</span>
                 </div>
              ))
           ) : (
@@ -146,7 +170,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                    <input 
                       value={tempP1}
                       onChange={(e) => setTempP1(e.target.value)}
-                      placeholder="Task 1..."
+                      placeholder="任务 1..."
                       className="bg-transparent border-none outline-none text-white placeholder-white/40 w-full font-medium text-lg focus:ring-0"
                       autoFocus
                    />
@@ -156,7 +180,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                    <input 
                       value={tempP2}
                       onChange={(e) => setTempP2(e.target.value)}
-                      placeholder="Task 2..."
+                      placeholder="任务 2..."
                       className="bg-transparent border-none outline-none text-white placeholder-white/40 w-full font-medium text-lg focus:ring-0"
                    />
                 </div>
@@ -169,10 +193,10 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Header Row */}
         <div className="grid grid-cols-12 bg-slate-50 border-b border-slate-200 text-sm font-bold text-slate-600 sticky top-0 z-20">
-          <div className="col-span-1 p-3 text-center border-r border-slate-200">Time</div>
-          <div className="col-span-4 md:col-span-5 p-3 border-r border-slate-200 pl-4">Plan (Schedule)</div>
-          <div className="col-span-5 md:col-span-5 p-3 border-r border-slate-200 pl-4">Do (Execution)</div>
-          <div className="col-span-2 md:col-span-1 p-3 text-center">Check</div>
+          <div className="col-span-1 p-3 text-center border-r border-slate-200">时间</div>
+          <div className="col-span-4 md:col-span-5 p-3 border-r border-slate-200 pl-4">计划 (Plan)</div>
+          <div className="col-span-5 md:col-span-5 p-3 border-r border-slate-200 pl-4">执行 (Do)</div>
+          <div className="col-span-2 md:col-span-1 p-3 text-center">检查 (Check)</div>
         </div>
 
         <div className="divide-y divide-slate-100">
@@ -201,7 +225,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                    className={`col-span-5 md:col-span-5 p-2 md:p-3 border-r border-slate-200 text-sm cursor-pointer border-l-4 ${getStatusColor(block.do.status).replace('bg-', 'hover:brightness-95 ')}`}
                 >
                     <div className={`h-full w-full rounded px-2 py-1 flex items-center ${getStatusColor(block.do.status)}`}>
-                        {block.do.actualContent || (block.do.status === 'none' ? <span className="opacity-0 group-hover:opacity-100 text-slate-300">Click to log</span> : '')}
+                        {block.do.actualContent || (block.do.status === 'none' ? <span className="opacity-0 group-hover:opacity-100 text-slate-300">点击记录</span> : '')}
                     </div>
                 </div>
 
@@ -227,7 +251,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
            className="bg-brand-600 hover:bg-brand-700 text-white shadow-xl rounded-full px-6 py-4 flex items-center gap-2 font-bold transition-transform hover:scale-105"
         >
             <Edit3 className="w-5 h-5" />
-            End Day (Act)
+            结束今日 (Act)
         </button>
       </div>
 
@@ -235,11 +259,11 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       {selectedBlock && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[1px]" onClick={() => setSelectedBlock(null)}>
            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-              <h3 className="font-bold text-lg mb-4 text-slate-800 capitalize">Edit {editType} - {selectedBlock.time}</h3>
+              <h3 className="font-bold text-lg mb-4 text-slate-800 capitalize">编辑 {getEditTitle(editType)} - {selectedBlock.time}</h3>
               
               <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Content</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">内容</label>
                     <input 
                       autoFocus
                       className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none" 
@@ -250,7 +274,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
 
                   {editType === 'do' && (
                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-2">Execution Status</label>
+                        <label className="block text-xs font-semibold text-slate-500 mb-2">执行状态</label>
                         <div className="flex flex-wrap gap-2">
                             {(['completed', 'partial', 'changed', 'skipped'] as const).map(s => (
                                 <button 
@@ -258,7 +282,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                                   onClick={() => setEditStatus(s)}
                                   className={`px-3 py-1 rounded-full text-xs font-medium border ${editStatus === s ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400'}`}
                                 >
-                                    {s}
+                                    {STATUS_LABELS[s]}
                                 </button>
                             ))}
                         </div>
@@ -267,22 +291,24 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
 
                   {editType === 'check' && (
                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-2">Efficiency</label>
+                        <label className="block text-xs font-semibold text-slate-500 mb-2">效率</label>
                          <div className="flex gap-4">
                             {(['high', 'normal', 'low'] as const).map(e => (
-                                <button
-                                   key={e}
-                                   onClick={() => setEditEfficiency(e)}
-                                   className={`w-8 h-8 rounded-full ring-2 ring-offset-2 ${editEfficiency === e ? 'ring-brand-500' : 'ring-transparent'} ${getEfficiencyColor(e)}`}
-                                />
+                                <div key={e} className="flex flex-col items-center gap-1">
+                                    <button
+                                    onClick={() => setEditEfficiency(e)}
+                                    className={`w-8 h-8 rounded-full ring-2 ring-offset-2 ${editEfficiency === e ? 'ring-brand-500' : 'ring-transparent'} ${getEfficiencyColor(e)}`}
+                                    />
+                                    <span className="text-xs text-slate-500">{EFFICIENCY_LABELS[e]}</span>
+                                </div>
                             ))}
                          </div>
                      </div>
                   )}
 
                   <div className="flex justify-end gap-2 mt-6">
-                      <button onClick={() => setSelectedBlock(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">Cancel</button>
-                      <button onClick={saveBlock} className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">Save</button>
+                      <button onClick={() => setSelectedBlock(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">取消</button>
+                      <button onClick={saveBlock} className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">保存</button>
                   </div>
               </div>
            </div>

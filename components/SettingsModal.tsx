@@ -27,7 +27,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     onClose();
     // In a full app, we might trigger a global refresh, 
     // but for now changes apply to new day creation or reload
-    alert("Settings saved! Note: Changes to Bio Clock apply primarily to new days created hereafter.");
+    alert("设置已保存！注意：生物钟的更改主要应用于之后创建的新日期。");
   };
 
   const updateMeal = (index: number, field: keyof typeof config.meals[0], value: any) => {
@@ -44,7 +44,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const addMeal = () => {
     setConfig({
       ...config,
-      meals: [...config.meals, { name: "Snack", time: "15:00", duration: 30 }]
+      meals: [...config.meals, { name: "加餐", time: "15:00", duration: 30 }]
     });
   };
 
@@ -61,8 +61,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 <Clock className="w-5 h-5 text-brand-600" />
              </div>
              <div>
-                <h2 className="text-xl font-bold text-slate-800">Bio Clock Settings</h2>
-                <p className="text-xs text-slate-500">Configure your daily rhythm anchors.</p>
+                <h2 className="text-xl font-bold text-slate-800">生物钟设置</h2>
+                <p className="text-xs text-slate-500">配置您的日常节奏锚点。</p>
              </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
@@ -74,11 +74,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             {/* Sleep Section */}
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                    <span>🌙</span> Sleep Window
+                    <span>🌙</span> 睡眠窗口 (Sleep Window)
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1">Bedtime</label>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">入睡时间</label>
                         <input 
                             type="time" 
                             value={config.sleepWindow[0]}
@@ -87,7 +87,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1">Wake Up</label>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">起床时间</label>
                          <input 
                             type="time" 
                             value={config.sleepWindow[1]}
@@ -102,10 +102,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             <div>
                 <div className="flex justify-between items-center mb-3">
                     <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                        <span>🍽️</span> Meals & Anchors
+                        <span>🍽️</span> 用餐与锚点
                     </h3>
                     <button onClick={addMeal} className="text-xs flex items-center gap-1 text-brand-600 font-medium hover:underline">
-                        <Plus className="w-3 h-3" /> Add
+                        <Plus className="w-3 h-3" /> 添加
                     </button>
                 </div>
                 
@@ -113,7 +113,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     {config.meals.map((meal, idx) => (
                         <div key={idx} className="flex gap-2 items-end">
                              <div className="flex-1">
-                                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Name</label>
+                                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">名称</label>
                                 <input 
                                     value={meal.name}
                                     onChange={(e) => updateMeal(idx, 'name', e.target.value)}
@@ -121,7 +121,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                 />
                              </div>
                              <div className="w-24">
-                                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Time</label>
+                                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">时间</label>
                                 <input 
                                     type="time"
                                     value={meal.time}
@@ -130,7 +130,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                 />
                              </div>
                              <div className="w-20">
-                                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Min</label>
+                                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">时长(分)</label>
                                 <input 
                                     type="number"
                                     value={meal.duration}
@@ -154,7 +154,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 onClick={handleSave}
                 className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-xl hover:bg-brand-700 font-medium transition-colors shadow-sm"
             >
-                <Save className="w-4 h-4" /> Save Settings
+                <Save className="w-4 h-4" /> 保存设置
             </button>
         </div>
       </div>

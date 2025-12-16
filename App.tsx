@@ -98,14 +98,14 @@ const App: React.FC = () => {
   };
 
   const handleDisconnect = () => {
-      if (confirm("Disconnect from cloud database and switch to local mode?")) {
+      if (confirm("断开云端数据库连接并切换到本地模式？")) {
           disconnectSupabaseConnection();
       }
   };
 
   // -- Render Logic --
 
-  if (authLoading) return <div className="h-screen flex items-center justify-center text-slate-400"><Loader2 className="animate-spin mr-2"/> Loading PDCA Flow...</div>;
+  if (authLoading) return <div className="h-screen flex items-center justify-center text-slate-400"><Loader2 className="animate-spin mr-2"/> 正在加载 PDCA Flow...</div>;
 
   // If Supabase is configured BUT no session, force Auth (Guard).
   // Exception: If showAuthModal is manually open (e.g. from local mode), we render it later.
@@ -130,13 +130,13 @@ const App: React.FC = () => {
                 onClick={() => setViewMode('daily')}
                 className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'daily' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
              >
-                <LayoutDashboard className="w-4 h-4" /> Daily
+                <LayoutDashboard className="w-4 h-4" /> 日视图
              </button>
              <button 
                 onClick={() => setViewMode('weekly')}
                 className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'weekly' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
              >
-                <CalendarDays className="w-4 h-4" /> Weekly
+                <CalendarDays className="w-4 h-4" /> 周视图
              </button>
           </div>
 
@@ -160,34 +160,34 @@ const App: React.FC = () => {
                     onClick={() => setShowAuthModal(true)}
                     className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 text-sm font-bold shadow-sm transition-all"
                  >
-                    <Cloud className="w-4 h-4" /> Connect Cloud
+                    <Cloud className="w-4 h-4" /> 连接云端
                  </button>
              ) : (
                  session ? (
                     <button 
                         onClick={handleLogout}
                         className="p-2 hover:bg-red-50 hover:text-red-600 rounded-full text-slate-500 transition-colors"
-                        title={`Signed in as ${session.user.email}`}
+                        title={`已登录: ${session.user.email}`}
                     >
                         <LogOut className="w-5 h-5" />
                     </button>
                  ) : (
                     // Configured but not signed in (Edge case handled by guard, but good for safety)
-                    <button onClick={() => setShowAuthModal(true)} className="text-sm font-bold text-brand-600">Log In</button>
+                    <button onClick={() => setShowAuthModal(true)} className="text-sm font-bold text-brand-600">登录</button>
                  )
              )}
 
              <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
-                title="Bio Clock Settings"
+                title="生物钟设置"
              >
                 <Settings className="w-5 h-5" />
              </button>
 
              {/* Hidden disconnect option for debug/reset */}
              {isSupabaseConfigured() && (
-                 <button onClick={handleDisconnect} className="p-2 text-slate-300 hover:text-red-400" title="Disconnect Cloud Config">
+                 <button onClick={handleDisconnect} className="p-2 text-slate-300 hover:text-red-400" title="断开云端连接">
                     <CloudOff className="w-4 h-4"/>
                  </button>
              )}

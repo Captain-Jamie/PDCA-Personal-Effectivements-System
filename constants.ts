@@ -3,8 +3,8 @@ import { BioClockConfig, WeeklyPlan } from './types';
 export const BIO_CLOCK_CONFIG: BioClockConfig = {
   sleepWindow: ["23:00", "07:00"],
   meals: [
-    { name: "Lunch", time: "12:00", duration: 60 },
-    { name: "Dinner", time: "18:00", duration: 60 }
+    { name: "午餐", time: "12:00", duration: 60 },
+    { name: "晚餐", time: "18:00", duration: 60 }
   ]
 };
 
@@ -24,25 +24,25 @@ while (hour < 23 || (hour === 23 && min === 0)) {
 }
 
 export const INITIAL_TASK_POOL = [
-  { id: 't1', title: 'Complete project proposal', createdDate: '2023-10-24', source: 'manual', status: 'pending' },
-  { id: 't2', title: 'Refactor auth module', createdDate: '2023-10-24', source: 'manual', status: 'pending' },
-  { id: 't3', title: 'Call client regarding API', createdDate: '2023-10-24', source: 'weekly_preset', status: 'pending' },
-  { id: 't4', title: 'Read technical documentation', createdDate: '2023-10-24', source: 'manual', status: 'pending' },
+  { id: 't1', title: '完成项目提案书', createdDate: '2023-10-24', source: 'manual', status: 'pending' },
+  { id: 't2', title: '重构认证模块', createdDate: '2023-10-24', source: 'manual', status: 'pending' },
+  { id: 't3', title: '与客户沟通 API 接口', createdDate: '2023-10-24', source: 'weekly_preset', status: 'pending' },
+  { id: 't4', title: '阅读技术文档', createdDate: '2023-10-24', source: 'manual', status: 'pending' },
 ] as const;
 
 export const INITIAL_WEEKLY_PLAN: WeeklyPlan = {
   id: '2023-W43',
   weekId: '2023-W43',
-  theme: 'Foundation Week',
+  theme: '基础建设周',
   startDate: '2023-10-23',
   dailyPresets: {
-    '2023-10-23': ['Setup Repo', 'Team Meeting'],
-    '2023-10-24': ['Database Schema', 'API Draft'],
-    '2023-10-25': ['Frontend Skeleton', 'Auth UI'],
-    '2023-10-26': ['Backend Core', 'Testing'],
-    '2023-10-27': ['Integration', 'Demo Prep'],
-    '2023-10-28': ['Review', 'Rest'],
-    '2023-10-29': ['Planning', 'Family'],
+    '2023-10-23': ['建立代码仓库', '团队会议'],
+    '2023-10-24': ['数据库设计', 'API 草案'],
+    '2023-10-25': ['前端脚手架', '认证 UI'],
+    '2023-10-26': ['后端核心', '单元测试'],
+    '2023-10-27': ['集成联调', '演示准备'],
+    '2023-10-28': ['复盘回顾', '休息'],
+    '2023-10-29': ['下周计划', '家庭时光'],
   },
   weeklySummary: ''
 };

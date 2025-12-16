@@ -38,7 +38,7 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
           password,
         });
         if (error) throw error;
-        setMsg('Check your email for the confirmation link!');
+        setMsg('请查看您的邮箱并点击确认链接！');
       } else {
         const { error } = await (supabase.auth as any).signInWithPassword({
           email,
@@ -50,7 +50,7 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
       }
     } catch (err: any) {
       setError(true);
-      setMsg(err.message || 'An error occurred');
+      setMsg(err.message || '发生了错误');
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                 <LayoutDashboard className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">PDCA<span className="opacity-80">Flow</span></h1>
-            <p className="text-brand-100 text-sm">Personal Effectiveness System</p>
+            <p className="text-brand-100 text-sm">个人效能系统</p>
         </div>
 
         <div className="p-8">
@@ -88,14 +88,14 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                 <div>
                      <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <CloudCog className="w-5 h-5 text-brand-600"/>
-                        Connect Cloud Database
+                        连接云端数据库
                     </h2>
                     <p className="text-sm text-slate-500 mb-6">
-                        Enter your Supabase project details to enable cloud sync and user login.
+                        输入您的 Supabase 项目详情以启用云同步和用户登录。
                     </p>
                     <form onSubmit={handleConfig} className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Project URL</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">项目地址 (URL)</label>
                             <input
                                 type="text"
                                 required
@@ -106,7 +106,7 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Anon Public Key</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">公开密钥 (Anon Public Key)</label>
                             <input
                                 type="password"
                                 required
@@ -120,11 +120,11 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                             type="submit"
                             className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl transition-colors mt-2"
                         >
-                            Save & Connect
+                            保存并连接
                         </button>
                     </form>
                     <div className="mt-4 p-3 bg-blue-50 text-blue-700 text-xs rounded-lg">
-                        Don't have one? Create a free project at <a href="https://supabase.com" target="_blank" className="underline font-bold">database.new</a>
+                        还没有数据库？去 <a href="https://supabase.com" target="_blank" className="underline font-bold">database.new</a> 创建一个免费项目
                     </div>
                 </div>
             ) : (
@@ -132,12 +132,12 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                 <>
                     <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                         {mode === 'login' ? <LogIn className="w-5 h-5"/> : <UserPlus className="w-5 h-5"/>}
-                        {mode === 'login' ? 'Sign In' : 'Create Account'}
+                        {mode === 'login' ? '登录' : '创建账户'}
                     </h2>
 
                     <form onSubmit={handleAuth} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">邮箱</label>
                             <input
                             type="email"
                             required
@@ -148,7 +148,7 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">密码</label>
                             <input
                             type="password"
                             required
@@ -171,17 +171,17 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                             className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl transition-colors flex justify-center items-center gap-2"
                         >
                             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                            {mode === 'login' ? 'Sign In' : 'Sign Up'}
+                            {mode === 'login' ? '登录' : '注册'}
                         </button>
                     </form>
 
                     <div className="mt-6 text-center text-sm text-slate-500">
-                        {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
+                        {mode === 'login' ? "还没有账户？ " : "已有账户？ "}
                         <button 
                             onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMsg(''); }}
                             className="text-brand-600 font-bold hover:underline"
                         >
-                            {mode === 'login' ? 'Sign Up' : 'Sign In'}
+                            {mode === 'login' ? '去注册' : '去登录'}
                         </button>
                     </div>
                 </>

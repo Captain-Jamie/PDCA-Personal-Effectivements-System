@@ -1,5 +1,5 @@
 {
-  "name": "PDCA Flow - Personal Effectiveness System",
-  "description": "A comprehensive personal management tool based on PDCA cycles, Principal Contradiction theory, and Tri-Track execution (Plan-Do-Check). Features Daily dashboard, Weekly planning, and Review modes.",
+  "name": "PDCA Flow - 个人效能系统",
+  "description": "基于 PDCA 循环、主要矛盾理论和三轨执行（计划-执行-检查）的综合个人管理工具。具有每日仪表板、每周计划和复盘模式。",
   "requestFramePermissions": []
 }
