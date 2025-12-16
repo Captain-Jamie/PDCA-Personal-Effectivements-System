@@ -7,7 +7,7 @@ import WeeklyView from './components/WeeklyView';
 import DailyActModal from './components/DailyActModal';
 import SettingsModal from './components/SettingsModal';
 import { Auth } from './components/Auth';
-import { LayoutDashboard, CalendarDays, Settings, LogOut, Loader2, Cloud, CloudOff } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, LogOut, Loader2, Cloud } from 'lucide-react';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -97,18 +97,11 @@ const App: React.FC = () => {
       if(supabase) await (supabase.auth as any).signOut();
   };
 
-  const handleDisconnect = () => {
-      if (confirm("断开云端数据库连接并切换到本地模式？")) {
-          disconnectSupabaseConnection();
-      }
-  };
-
   // -- Render Logic --
 
   if (authLoading) return <div className="h-screen flex items-center justify-center text-slate-400"><Loader2 className="animate-spin mr-2"/> 正在加载 PDCA Flow...</div>;
 
   // If Supabase is configured BUT no session, force Auth (Guard).
-  // Exception: If showAuthModal is manually open (e.g. from local mode), we render it later.
   if (isSupabaseConfigured() && !session && !showAuthModal) {
       return <Auth />;
   }
@@ -154,15 +147,8 @@ const App: React.FC = () => {
                  </div>
              )}
              
-             {/* Cloud / Auth Button */}
-             {!isSupabaseConfigured() ? (
-                 <button 
-                    onClick={() => setShowAuthModal(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 text-sm font-bold shadow-sm transition-all"
-                 >
-                    <Cloud className="w-4 h-4" /> 连接云端
-                 </button>
-             ) : (
+             {/* Auth Status / Button */}
+             {isSupabaseConfigured() && (
                  session ? (
                     <button 
                         onClick={handleLogout}
@@ -172,8 +158,7 @@ const App: React.FC = () => {
                         <LogOut className="w-5 h-5" />
                     </button>
                  ) : (
-                    // Configured but not signed in (Edge case handled by guard, but good for safety)
-                    <button onClick={() => setShowAuthModal(true)} className="text-sm font-bold text-brand-600">登录</button>
+                    <button onClick={() => setShowAuthModal(true)} className="text-sm font-bold text-brand-600 hover:underline">登录</button>
                  )
              )}
 
@@ -184,13 +169,6 @@ const App: React.FC = () => {
              >
                 <Settings className="w-5 h-5" />
              </button>
-
-             {/* Hidden disconnect option for debug/reset */}
-             {isSupabaseConfigured() && (
-                 <button onClick={handleDisconnect} className="p-2 text-slate-300 hover:text-red-400" title="断开云端连接">
-                    <CloudOff className="w-4 h-4"/>
-                 </button>
-             )}
           </div>
         </div>
       </nav>
@@ -236,7 +214,7 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
       />
 
-      {/* Auth Modal for Manual Connection/Login */}
+      {/* Auth Modal for Manual Login (Only shown if configured but not logged in) */}
       {showAuthModal && (
           <Auth onClose={() => setShowAuthModal(false)} />
       )}

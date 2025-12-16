@@ -135,7 +135,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
         </div>
         
         <div className="relative z-10 flex justify-between items-start mb-3">
-             <h3 className="text-brand-100 text-sm font-semibold uppercase tracking-wider">今日主要矛盾 (Core Focus)</h3>
+             <h3 className="text-brand-100 text-sm font-semibold uppercase tracking-wider">今日主要任务 (Core Tasks)</h3>
              {!isEditingPrincipal ? (
                  <button 
                     onClick={() => setIsEditingPrincipal(true)}
@@ -193,9 +193,9 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Header Row */}
         <div className="grid grid-cols-12 bg-slate-50 border-b border-slate-200 text-sm font-bold text-slate-600 sticky top-0 z-20">
-          <div className="col-span-1 p-3 text-center border-r border-slate-200">时间</div>
+          <div className="col-span-2 md:col-span-1 p-3 text-center border-r border-slate-200">时间</div>
           <div className="col-span-4 md:col-span-5 p-3 border-r border-slate-200 pl-4">计划 (Plan)</div>
-          <div className="col-span-5 md:col-span-5 p-3 border-r border-slate-200 pl-4">执行 (Do)</div>
+          <div className="col-span-4 md:col-span-5 p-3 border-r border-slate-200 pl-4">执行 (Do)</div>
           <div className="col-span-2 md:col-span-1 p-3 text-center">检查 (Check)</div>
         </div>
 
@@ -205,8 +205,8 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
              
              return (
               <div key={block.id} className="grid grid-cols-12 hover:bg-slate-50 transition-colors group">
-                {/* Time */}
-                <div className="col-span-1 py-3 text-xs md:text-sm text-slate-400 text-center font-mono border-r border-slate-200 flex items-center justify-center">
+                {/* Time - Widened for mobile */}
+                <div className="col-span-2 md:col-span-1 py-3 text-xs md:text-sm text-slate-400 text-center font-mono border-r border-slate-200 flex items-center justify-center">
                    {block.time}
                 </div>
 
@@ -222,7 +222,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                 {/* Do */}
                 <div 
                    onClick={() => openEditor(block, 'do')}
-                   className={`col-span-5 md:col-span-5 p-2 md:p-3 border-r border-slate-200 text-sm cursor-pointer border-l-4 ${getStatusColor(block.do.status).replace('bg-', 'hover:brightness-95 ')}`}
+                   className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-slate-200 text-sm cursor-pointer border-l-4 ${getStatusColor(block.do.status).replace('bg-', 'hover:brightness-95 ')}`}
                 >
                     <div className={`h-full w-full rounded px-2 py-1 flex items-center ${getStatusColor(block.do.status)}`}>
                         {block.do.actualContent || (block.do.status === 'none' ? <span className="opacity-0 group-hover:opacity-100 text-slate-300">点击记录</span> : '')}

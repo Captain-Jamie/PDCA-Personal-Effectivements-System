@@ -146,7 +146,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
               <div className="flex-1 flex flex-col border border-brand-200 rounded-xl overflow-hidden bg-brand-50/30">
                  <div className="p-4 border-b border-brand-100 bg-white">
                   <h3 className="font-bold text-brand-900">明日核心聚焦</h3>
-                  <p className="text-xs text-brand-600 mt-1">选择 2 个主要矛盾</p>
+                  <p className="text-xs text-brand-600 mt-1">选择 2 个主要任务</p>
                 </div>
                 <div className="p-6 space-y-6 flex-1">
                    <div>
