@@ -116,25 +116,29 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
   };
 
   const handleExportWeek = () => {
-      const rows = [];
-      rows.push(["Week ID", plan?.weekId, "Theme", plan?.theme]);
-      rows.push(["Weekly Summary", plan?.weeklySummary]);
+      if (!plan) return;
+
+      const rows: string[][] = [];
+      rows.push(["Week ID", plan.weekId || '', "Theme", plan.theme || '']);
+      rows.push(["Weekly Summary", plan.weeklySummary || '']);
       rows.push([]);
       rows.push(["Date", "Day", "Task 1", "Task 2", "Daily Summary"]);
       
       weekDates.forEach((date, i) => {
-          const tasks = plan?.dailyPresets[date] || ['', ''];
+          const tasks = plan.dailyPresets[date] || ['', ''];
           const rec = weekDailyRecords.find(r => r.date === date);
+          const summary = rec?.daySummary || '';
+          
           rows.push([
               date,
               days[i],
-              tasks[0],
-              tasks[1],
-              rec?.daySummary.replace(/\n/g, ' ') || ''
+              tasks[0] || '',
+              tasks[1] || '',
+              summary.replace(/\n/g, ' ')
           ]);
       });
       
-      exportToCSV(`PDCA_Weekly_${plan?.weekId}.csv`, rows);
+      exportToCSV(`PDCA_Weekly_${plan.weekId}.csv`, rows);
   };
 
   const loadDayDetail = async (dateStr: string) => {
