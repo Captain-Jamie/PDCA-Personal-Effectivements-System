@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DailyRecord, TaskItem, EfficiencyRating } from '../types';
+import { DailyRecord, TaskItem } from '../types';
 import { getTaskPool, saveTaskPool, saveDailyRecord } from '../services/storage';
 import { Plus, ArrowRight, Save, X, RotateCcw } from 'lucide-react';
 
@@ -22,34 +22,37 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
   // Metrics State
   const [metrics, setMetrics] = useState({ completionRate: 0, efficiencyLabel: '未知' });
 
+  // Only reset step when modal opens, NOT when record updates (Fixes flash bug)
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      setSummary(record.daySummary);
-      calculateMetrics();
       // Fetch pool asynchronously
       getTaskPool().then(setTaskPool);
     }
-  }, [isOpen, record]);
+  }, [isOpen]); 
+
+  // Sync state when record changes (e.g. after save)
+  useEffect(() => {
+     if(record) {
+         setSummary(record.daySummary);
+         calculateMetrics();
+     }
+  }, [record]);
 
   const calculateMetrics = () => {
-      // 1. Completion Rate: (Completed + Partial) / Total Planned Blocks (that are not empty or bio locked)
       let totalPlanned = 0;
       let completedPoints = 0;
-
-      // 2. Efficiency: Average of High(3)/Normal(2)/Low(1)
       let efficiencySum = 0;
       let efficiencyCount = 0;
 
       record.timeBlocks.forEach(block => {
-          // Skip bio locked
           if (block.plan.isBioLocked) return;
           
           if (block.plan.content) {
               totalPlanned++;
               if (block.do.status === 'completed') completedPoints += 1;
               else if (block.do.status === 'partial') completedPoints += 0.5;
-              else if (block.do.status === 'changed') completedPoints += 0.8; // Flexible execution counts
+              else if (block.do.status === 'changed') completedPoints += 0.8;
           }
 
           if (block.check.efficiency) {
@@ -78,7 +81,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
     const updated = { ...record, daySummary: summary };
     await saveDailyRecord(updated);
     onRecordUpdate(updated);
-    setStep(2);
+    setStep(2); // Move to next step
   };
 
   const addTaskToPool = async () => {
@@ -125,9 +128,13 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
         <div className="flex-1 overflow-y-auto p-6">
           
           {step === 1 && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                 <h3 className="font-semibold text-blue-900 mb-2">今日检查指标 (实时计算)</h3>
+            <div className="space-y-6 animate-fade-in flex flex-col h-full">
+              {/* Metrics Bar */}
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex justify-between items-center">
+                 <div>
+                    <h3 className="font-semibold text-blue-900">今日检查指标</h3>
+                    <p className="text-xs text-blue-600/80">基于今日时间轴数据自动计算</p>
+                 </div>
                  <div className="flex gap-4 text-sm text-blue-800">
                     <div className="px-3 py-1 bg-white rounded-md shadow-sm">
                         平均效率: <span className={`font-bold ${metrics.efficiencyLabel === '高' ? 'text-green-600' : metrics.efficiencyLabel === '低' ? 'text-red-500' : 'text-blue-600'}`}>{metrics.efficiencyLabel}</span>
@@ -138,15 +145,51 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
                  </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">今日总结</label>
-                <textarea 
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
-                  className="w-full h-48 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none text-slate-700"
-                  placeholder="今天过得怎么样？完成了什么？有什么需要改进的？"
-                />
+              <div className="flex-1 grid md:grid-cols-2 gap-6 min-h-0">
+                  {/* Left: Execution Log for Reference */}
+                  <div className="flex flex-col h-64 md:h-auto border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                      <div className="p-3 bg-white border-b border-slate-200 font-semibold text-slate-700 text-sm">今日执行与检查记录</div>
+                      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                          {record.timeBlocks.filter(b => b.do.actualContent || b.check.comment).length > 0 ? (
+                              record.timeBlocks.filter(b => b.do.actualContent || b.check.comment).map(b => (
+                                  <div key={b.id} className="text-xs bg-white p-2 rounded border border-slate-100 shadow-sm">
+                                      <div className="flex items-center gap-2 mb-1">
+                                          <span className="font-mono font-bold text-slate-500">{b.time}</span>
+                                          {b.check.efficiency && <span className={`px-1.5 rounded-sm text-[10px] ${b.check.efficiency === 'high' ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>{b.check.efficiency}</span>}
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <div className={`p-1 rounded ${b.do.actualContent ? 'bg-blue-50/50' : ''}`}>
+                                              <span className="text-slate-400 block text-[10px] uppercase">Do</span>
+                                              <span className="text-slate-700">{b.do.actualContent || '-'}</span>
+                                          </div>
+                                          <div className={`p-1 rounded ${b.check.comment ? 'bg-yellow-50/50' : ''}`}>
+                                              <span className="text-slate-400 block text-[10px] uppercase">Check</span>
+                                              <span className="text-slate-700">{b.check.comment || '-'}</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              ))
+                          ) : (
+                              <div className="text-center text-slate-400 text-xs mt-10">暂无执行记录</div>
+                          )}
+                      </div>
+                  </div>
+
+                  {/* Right: Summary Input */}
+                  <div className="flex flex-col">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">今日总结</label>
+                    <textarea 
+                      value={summary}
+                      onChange={(e) => setSummary(e.target.value)}
+                      className="flex-1 w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none text-slate-700"
+                      placeholder="结合左侧的执行记录，复盘今天：
+1. 主要任务完成了吗？
+2. 哪个时间段效率最高/最低，为什么？
+3. 明天需要改进什么？"
+                    />
+                  </div>
               </div>
+
               <div className="flex justify-end">
                 <button 
                   onClick={handleSummarySave}

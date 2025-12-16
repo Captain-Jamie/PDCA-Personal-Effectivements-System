@@ -28,6 +28,20 @@ export const getMondayOfWeek = (date: Date): string => {
   return monday.toISOString().split('T')[0];
 };
 
+// --- Export Helper ---
+export const exportToCSV = (filename: string, rows: string[][]) => {
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+        + rows.map(e => e.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 // --- Async Data Services ---
 
 // 1. Bio Clock
@@ -154,6 +168,49 @@ export const getDailyRecord = async (date: string): Promise<DailyRecord> => {
     saveDailyRecord(records[date]); // Sync save for local
   }
   return records[date];
+};
+
+export const getDailyRecordsRange = async (startDate: string, endDate: string): Promise<DailyRecord[]> => {
+    // Generate dates in range
+    const dates: string[] = [];
+    const d = new Date(startDate);
+    const end = new Date(endDate);
+    while (d <= end) {
+        dates.push(d.toISOString().split('T')[0]);
+        d.setDate(d.getDate() + 1);
+    }
+
+    if (supabase) {
+        const { data: { user } } = await (supabase.auth as any).getUser();
+        if (user) {
+            const { data } = await supabase
+                .from('daily_records')
+                .select('data')
+                .in('date', dates)
+                .eq('user_id', user.id);
+            
+            const fetchedRecords = (data || []).map((d: any) => d.data as DailyRecord);
+            // We might want to fill missing days with empty structure, but for Summary review, existing ones are enough.
+            // But to return aligned array:
+            const lookup = new Map(fetchedRecords.map((r) => [r.date, r]));
+            const results = [];
+            for (const date of dates) {
+                if(lookup.has(date)) results.push(lookup.get(date)!);
+                else results.push(await createEmptyDay(date)); // Create in memory, don't necessarily save yet
+            }
+            return results;
+        }
+    }
+
+    // Fallback
+    const stored = localStorage.getItem(STORAGE_KEYS.DAILY_RECORDS);
+    const records: Record<string, DailyRecord> = stored ? JSON.parse(stored) : {};
+    const results = [];
+    for (const date of dates) {
+        if(records[date]) results.push(records[date]);
+        else results.push(await createEmptyDay(date));
+    }
+    return results;
 };
 
 export const saveDailyRecord = async (record: DailyRecord) => {

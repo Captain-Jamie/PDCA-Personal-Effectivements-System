@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DailyRecord, TimeBlock, ExecutionStatus, EfficiencyRating } from '../types';
-import { saveDailyRecord } from '../services/storage';
-import { Edit3, Flag, Save, Copy, ClipboardPaste, Plus, Clock, PlayCircle } from 'lucide-react';
+import { saveDailyRecord, exportToCSV } from '../services/storage';
+import { Edit3, Flag, Save, Copy, ClipboardPaste, Plus, Clock, FileDown } from 'lucide-react';
 import { TIME_SLOTS } from '../constants';
 
 interface DailyViewProps {
@@ -62,6 +62,32 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   };
 
+  // --- Actions ---
+
+  const handleExport = () => {
+      const rows = [
+          ["Date", record.date],
+          ["Summary", record.daySummary],
+          ["Primary Task 1", record.primaryTasks[0]],
+          ["Primary Task 2", record.primaryTasks[1]],
+          [],
+          ["Time", "Plan", "Do", "Status", "Check Comment", "Efficiency"]
+      ];
+
+      record.timeBlocks.forEach(b => {
+          rows.push([
+              b.time,
+              b.plan.content.replace(/\n/g, '; '),
+              b.do.actualContent.replace(/\n/g, '; '),
+              b.do.status,
+              b.check.comment.replace(/\n/g, '; '),
+              b.check.efficiency || ''
+          ]);
+      });
+
+      exportToCSV(`PDCA_Daily_${record.date}.csv`, rows);
+  };
+
   const savePrincipalTasks = () => {
     const updated = {
         ...record,
@@ -73,18 +99,17 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
   };
 
   // --- Editor Logic ---
-
+  // (Omitting full repeat of logic for brevity, keeping existing functional blocks)
   const openEditor = (block: TimeBlock | null, type: 'plan' | 'do' | 'check', defaultTime?: string) => {
     setEditType(type);
     
     if (block) {
-        // Edit existing block
         setSelectedBlockId(block.id);
         const nextSlotIdx = TIME_SLOTS.indexOf(block.time) + 1;
         const defaultEnd = nextSlotIdx < TIME_SLOTS.length ? TIME_SLOTS[nextSlotIdx] : block.time;
 
         if (type === 'plan') {
-            if (block.plan.isBioLocked) return; // Prevent editing bio locks
+            if (block.plan.isBioLocked) return;
             setEditContent(block.plan.content);
             setEditStartTime(block.plan.startTime || block.time);
             setEditEndTime(block.plan.endTime || defaultEnd);
@@ -96,29 +121,24 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
         } else if (type === 'check') {
             setEditContent(block.check.comment);
             setEditEfficiency(block.check.efficiency);
-            // Check doesn't really need time range usually, but we keep structure
             setEditStartTime(block.time);
             setEditEndTime(defaultEnd);
         }
     } else {
-        // New / Quick Add
         setSelectedBlockId('NEW');
         setEditContent('');
-        setEditStatus('completed'); // Default to completed for quick add Do
+        setEditStatus('completed');
         setEditEfficiency(null);
-        // Default to current time rounded or 09:00
         const now = new Date();
         const currentH = now.getHours().toString().padStart(2, '0');
         const defaultStart = defaultTime || `${currentH}:00`;
         setEditStartTime(defaultStart);
-        // Default end is +30 mins
         const endMin = timeToMinutes(defaultStart) + 30;
         setEditEndTime(minutesToTime(endMin));
     }
   };
 
   const saveBlock = () => {
-    // Logic: Distribute content across all time blocks that fall within Start/End Time
     const startMin = timeToMinutes(editStartTime);
     const endMin = timeToMinutes(editEndTime);
 
@@ -129,50 +149,29 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
 
     const newBlocks = record.timeBlocks.map(b => {
       const blockStart = timeToMinutes(b.time);
-      const blockEnd = blockStart + 30; // Assuming 30 min slots
-
-      // Check for overlap: (StartA < EndB) and (EndA > StartB)
+      const blockEnd = blockStart + 30;
       const isOverlapping = (startMin < blockEnd) && (endMin > blockStart);
-
       if (!isOverlapping) return b;
 
-      // If Overlapping, update this block
       const newB = { ...b };
-      
-      // Determine if this is a "partial" block (starts mid-block or ends mid-block)
       const isStartBlock = (startMin >= blockStart && startMin < blockEnd);
 
       if (editType === 'plan') {
-        if (newB.plan.isBioLocked) return b; // Skip bio locks
-        
-        // --- OVERWRITE vs APPEND Logic ---
-        // If it's a NEW entry (Quick Add), append. If editing existing block, replace.
-        // Also check if block already has content.
+        if (newB.plan.isBioLocked) return b;
         let contentToSet = editContent;
         let timePrefix = "";
-        
         if (isStartBlock && editStartTime !== b.time) {
              timePrefix = `[${editStartTime}] `;
         }
-
         const fullContent = timePrefix + contentToSet;
-
         if (selectedBlockId === 'NEW' && newB.plan.content) {
-             // Append mode: Add newline + new task
              newB.plan.content = newB.plan.content + "\n" + fullContent;
         } else {
-             // Replace mode (or empty block)
-             // Note: simpler implementation replaces whole block content for now if editing
-             // If we are range filling, we generally overwrite empty blocks or append to filled ones?
-             // Let's stick to: if editing specific block -> replace. If range fill -> append if occupied.
              if (selectedBlockId !== 'NEW' && b.id === selectedBlockId) {
-                  // Direct Edit of this block
-                  newB.plan.content = contentToSet; // Don't add prefix if editing straight
+                  newB.plan.content = contentToSet;
                   if(editStartTime !== b.time) newB.plan.startTime = editStartTime; 
              } else {
-                 // Range fill or New
                  if (newB.plan.content) {
-                     // Avoid appending if exactly same content
                      if(!newB.plan.content.includes(contentToSet)) {
                          newB.plan.content = newB.plan.content + "\n" + fullContent;
                      }
@@ -181,24 +180,17 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                  }
              }
         }
-
-        // Set End time only on start block for display reference
-        // (Simplified logic to prevent complexity in PlanTrack array)
         if (isStartBlock) newB.plan.endTime = editEndTime; 
 
       } else if (editType === 'do') {
         let contentToSet = editContent;
         let timePrefix = "";
-        
         if (isStartBlock && editStartTime !== b.time) {
              timePrefix = `[${editStartTime}] `;
         }
         const fullContent = timePrefix + contentToSet;
-
         if (selectedBlockId === 'NEW' && newB.do.actualContent) {
             newB.do.actualContent = newB.do.actualContent + "\n" + fullContent;
-            // If appending, status logic is tricky. Keep existing status if set, or upgrade to 'partial'/'completed'?
-            // Let's keep existing status to be safe.
         } else {
              if (selectedBlockId !== 'NEW' && b.id === selectedBlockId) {
                   newB.do.actualContent = contentToSet;
@@ -230,22 +222,19 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
     setSelectedBlockId(null);
   };
 
-  // --- Copy / Paste Logic ---
+  // --- Copy/Paste Logic ---
   const handleCopy = (content: string, status: ExecutionStatus | undefined, type: 'plan' | 'do', e: React.MouseEvent) => {
       e.stopPropagation();
       setClipboard({ content, status, type });
   };
-
   const handlePaste = (blockId: string, type: 'plan' | 'do', e: React.MouseEvent) => {
       e.stopPropagation();
       if (!clipboard) return;
-
       const newBlocks = record.timeBlocks.map(b => {
           if (b.id !== blockId) return b;
           const newB = { ...b };
-          if (type === 'plan') {
-              newB.plan.content = clipboard.content;
-          } else if (type === 'do') {
+          if (type === 'plan') newB.plan.content = clipboard.content;
+          else if (type === 'do') {
               newB.do.actualContent = clipboard.content;
               if (clipboard.status) newB.do.status = clipboard.status;
           }
@@ -256,8 +245,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       saveDailyRecord(newRecord);
   };
 
-
-  // Status colors
+  // Styles Helpers
   const getStatusColor = (status: ExecutionStatus) => {
     switch(status) {
       case 'completed': return 'bg-green-100 border-green-300 text-green-800';
@@ -267,14 +255,12 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       default: return 'bg-white border-transparent';
     }
   };
-
   const getEfficiencyColor = (eff: EfficiencyRating) => {
      if (eff === 'high') return 'bg-green-500';
      if (eff === 'normal') return 'bg-blue-400';
      if (eff === 'low') return 'bg-red-400';
      return 'bg-slate-200';
   };
-
   const getEditTitle = (type: string) => {
       switch(type) {
           case 'plan': return '计划 (Plan)';
@@ -285,7 +271,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 relative">
       {/* Principal Tasks Banner */}
       <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-6 text-white shadow-lg relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -294,25 +280,28 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
         
         <div className="relative z-10 flex justify-between items-start mb-3">
              <h3 className="text-brand-100 text-sm font-semibold uppercase tracking-wider">今日主要任务 (Core Tasks)</h3>
-             {!isEditingPrincipal ? (
-                 <button 
-                    onClick={() => setIsEditingPrincipal(true)}
-                    className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white"
-                    title="编辑主要任务"
-                 >
-                    <Edit3 className="w-4 h-4" />
-                 </button>
-             ) : (
-                <button 
-                    onClick={savePrincipalTasks}
-                    className="p-1.5 bg-green-500/80 hover:bg-green-500 rounded-lg transition-colors text-white shadow-sm"
-                    title="保存"
-                 >
-                    <Save className="w-4 h-4" />
-                 </button>
-             )}
+             <div className="flex gap-2">
+                 <button onClick={handleExport} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white" title="导出 CSV"><FileDown className="w-4 h-4"/></button>
+                 {!isEditingPrincipal ? (
+                     <button 
+                        onClick={() => setIsEditingPrincipal(true)}
+                        className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white"
+                        title="编辑主要任务"
+                     >
+                        <Edit3 className="w-4 h-4" />
+                     </button>
+                 ) : (
+                    <button 
+                        onClick={savePrincipalTasks}
+                        className="p-1.5 bg-green-500/80 hover:bg-green-500 rounded-lg transition-colors text-white shadow-sm"
+                        title="保存"
+                     >
+                        <Save className="w-4 h-4" />
+                     </button>
+                 )}
+             </div>
         </div>
-
+        {/* ... (Task List Rendering) ... */}
         <div className="grid md:grid-cols-2 gap-4 relative z-10">
           {!isEditingPrincipal ? (
              record.primaryTasks.map((task, i) => (
@@ -349,7 +338,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
 
       {/* Tri-Track Grid */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
-        {/* Header Row */}
+         {/* ... (Existing Grid Header and Content) ... */}
         <div className="grid grid-cols-12 bg-slate-50 border-b border-slate-200 text-sm font-bold text-slate-600 sticky top-0 z-20 shadow-sm">
           <div className="col-span-2 md:col-span-1 p-3 text-center border-r border-slate-200">时间</div>
           <div className="col-span-4 md:col-span-5 p-3 border-r border-slate-200 pl-4 flex justify-between items-center">
@@ -370,83 +359,40 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
         <div className="divide-y divide-slate-100">
           {record.timeBlocks.map((block) => {
              const isLocked = block.plan.isBioLocked;
-             
              return (
               <div key={block.id} className="grid grid-cols-12 hover:bg-slate-50 transition-colors group">
-                {/* Time */}
                 <div className="col-span-2 md:col-span-1 py-3 text-xs md:text-sm text-slate-400 text-center font-mono border-r border-slate-200 flex items-center justify-center relative">
                    {block.time}
                 </div>
-
                 {/* Plan */}
-                <div 
-                   onClick={() => openEditor(block, 'plan')}
-                   className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-slate-200 text-sm cursor-pointer relative group/cell whitespace-pre-wrap ${isLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed italic' : 'hover:bg-blue-50/50'}`}
-                >
-                   {/* Granular Time Display only if start time differs from block time AND NOT using full range prefix mode (which adds text) */}
+                <div onClick={() => openEditor(block, 'plan')} className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-slate-200 text-sm cursor-pointer relative group/cell whitespace-pre-wrap ${isLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed italic' : 'hover:bg-blue-50/50'}`}>
                    {block.plan.startTime && block.plan.startTime !== block.time && !block.plan.content.includes('[') && (
                        <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded mr-1 font-mono">{block.plan.startTime}~</span>
                    )}
                    {block.plan.content}
                    {isLocked && <span className="absolute right-2 top-3 text-xs text-slate-300">BIO</span>}
-                   
-                   {/* Copy/Paste Buttons */}
                    {!isLocked && (
                        <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover/cell:flex gap-1 bg-white/80 rounded">
-                           {block.plan.content && (
-                               <button 
-                                onClick={(e) => handleCopy(block.plan.content, undefined, 'plan', e)}
-                                className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600" title="复制">
-                                   <Copy className="w-3 h-3"/>
-                               </button>
-                           )}
-                           {clipboard && clipboard.type === 'plan' && (
-                               <button 
-                                onClick={(e) => handlePaste(block.id, 'plan', e)}
-                                className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600" title="粘贴">
-                                   <ClipboardPaste className="w-3 h-3"/>
-                               </button>
-                           )}
+                           {block.plan.content && <button onClick={(e) => handleCopy(block.plan.content, undefined, 'plan', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><Copy className="w-3 h-3"/></button>}
+                           {clipboard && clipboard.type === 'plan' && <button onClick={(e) => handlePaste(block.id, 'plan', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><ClipboardPaste className="w-3 h-3"/></button>}
                        </div>
                    )}
                 </div>
-
                 {/* Do */}
-                <div 
-                   onClick={() => openEditor(block, 'do')}
-                   className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-slate-200 text-sm cursor-pointer border-l-4 group/cell whitespace-pre-wrap ${getStatusColor(block.do.status).replace('bg-', 'hover:brightness-95 ')}`}
-                >
+                <div onClick={() => openEditor(block, 'do')} className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-slate-200 text-sm cursor-pointer border-l-4 group/cell whitespace-pre-wrap ${getStatusColor(block.do.status).replace('bg-', 'hover:brightness-95 ')}`}>
                     <div className={`h-full w-full rounded px-2 py-1 flex items-center relative ${getStatusColor(block.do.status)}`}>
                         {block.do.startTime && block.do.startTime !== block.time && !block.do.actualContent.includes('[') && (
                             <span className="text-[10px] bg-white/50 text-slate-700 px-1 rounded mr-1 font-mono">{block.do.startTime}~</span>
                         )}
                         {block.do.actualContent || (block.do.status === 'none' ? <span className="opacity-0 group-hover:opacity-100 text-slate-300">点击记录</span> : '')}
-
-                        {/* Copy/Paste Buttons */}
                         <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover/cell:flex gap-1 bg-white/80 rounded">
-                           {block.do.actualContent && (
-                               <button 
-                                onClick={(e) => handleCopy(block.do.actualContent, block.do.status, 'do', e)}
-                                className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600" title="复制">
-                                   <Copy className="w-3 h-3"/>
-                               </button>
-                           )}
-                           {clipboard && clipboard.type === 'do' && (
-                               <button 
-                                onClick={(e) => handlePaste(block.id, 'do', e)}
-                                className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600" title="粘贴">
-                                   <ClipboardPaste className="w-3 h-3"/>
-                               </button>
-                           )}
+                           {block.do.actualContent && <button onClick={(e) => handleCopy(block.do.actualContent, block.do.status, 'do', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><Copy className="w-3 h-3"/></button>}
+                           {clipboard && clipboard.type === 'do' && <button onClick={(e) => handlePaste(block.id, 'do', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><ClipboardPaste className="w-3 h-3"/></button>}
                        </div>
                     </div>
                 </div>
-
                 {/* Check */}
-                <div 
-                   onClick={() => openEditor(block, 'check')}
-                   className="col-span-2 md:col-span-1 p-2 border-r border-slate-200 flex items-center justify-center cursor-pointer hover:bg-slate-100"
-                >
+                <div onClick={() => openEditor(block, 'check')} className="col-span-2 md:col-span-1 p-2 border-r border-slate-200 flex items-center justify-center cursor-pointer hover:bg-slate-100">
                     <div className={`w-3 h-3 md:w-4 md:h-4 rounded-full ${getEfficiencyColor(block.check.efficiency)}`}></div>
                 </div>
               </div>
@@ -455,23 +401,24 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
         </div>
       </div>
 
-      {/* Floating Action Button for Act */}
-      <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8 z-30 flex flex-col gap-3 items-end">
+      {/* FIXED FAB Layout: Equal Size Circles */}
+      <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8 z-30 flex flex-col gap-4 items-center">
         {/* Quick Add Button */}
         <button
             onClick={() => openEditor(null, 'plan')}
-            className="bg-white text-brand-600 shadow-lg border border-brand-100 rounded-full px-4 py-3 flex items-center gap-2 font-bold transition-transform hover:scale-105"
+            className="w-14 h-14 bg-white text-brand-600 shadow-xl border-2 border-brand-100 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+            title="快速添加"
         >
-            <Plus className="w-5 h-5" />
-            快速添加
+            <Plus className="w-7 h-7" />
         </button>
 
+        {/* End Day Button */}
         <button 
            onClick={onOpenAct}
-           className="bg-brand-600 hover:bg-brand-700 text-white shadow-xl rounded-full px-6 py-4 flex items-center gap-2 font-bold transition-transform hover:scale-105"
+           className="w-14 h-14 bg-brand-600 hover:bg-brand-700 text-white shadow-xl shadow-brand-200 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+           title="结束今日"
         >
-            <Edit3 className="w-5 h-5" />
-            结束今日
+            <Edit3 className="w-6 h-6" />
         </button>
       </div>
 

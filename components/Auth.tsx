@@ -171,7 +171,7 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                         {mode === 'signup' && (
                              <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                                    <ShieldCheck className="w-4 h-4 text-brand-500"/> 邀请码 (防止恶意注册)
+                                    <ShieldCheck className="w-4 h-4 text-brand-500"/> 邀请码
                                 </label>
                                 <input
                                 type="text"
