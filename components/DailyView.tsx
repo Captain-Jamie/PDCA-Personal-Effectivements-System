@@ -288,8 +288,10 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
           const nextIdx = idx + currentSpan; // The block immediately after the current merged group
           if (nextIdx >= newBlocks.length) return;
 
-          const newSpan = currentSpan + 1;
           const blockToMerge = newBlocks[nextIdx];
+          // FIX: Calculate new span by adding the target block's span (which might be > 1 if already merged)
+          const nextSpan = (col === 'plan' ? blockToMerge.plan.span : blockToMerge.do.span) || 1;
+          const newSpan = currentSpan + nextSpan;
           
           if (col === 'plan') {
                newBlocks[idx] = { ...currentBlock, plan: { ...currentBlock.plan, span: newSpan } };
