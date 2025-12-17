@@ -5,6 +5,7 @@
 export interface BioClockConfig {
   sleepWindow: [string, string]; // e.g. ["23:00", "07:00"]
   meals: Array<{ name: string; time: string; duration: number }>; // duration in minutes
+  enableSleepFold?: boolean; // New: Toggle to collapse sleep hours
 }
 
 // 2. Task Pool Item

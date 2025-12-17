@@ -100,8 +100,10 @@ const calculateBioLocks = (time: string, config: BioClockConfig) => {
   const sleepEndVal = eh * 60 + em;
 
   if (sleepStartVal > sleepEndVal) {
+    // Sleep crosses midnight (e.g. 23:00 to 07:00)
     if (timeVal >= sleepStartVal || timeVal < sleepEndVal) return { locked: true, content: 'Sleep' };
   } else {
+    // Standard (e.g. 01:00 to 06:00)
     if (timeVal >= sleepStartVal && timeVal < sleepEndVal) return { locked: true, content: 'Sleep' };
   }
   return { locked: false, content: '' };
@@ -140,7 +142,39 @@ const createEmptyDay = async (date: string): Promise<DailyRecord> => {
   };
 };
 
+const ensureTimeBlocksCoverage = async (record: DailyRecord): Promise<DailyRecord> => {
+    // If the record was created with old 7-23 slots, we might want to fill in the 24h gaps.
+    // However, since TIME_SLOTS is now 24h, we can check if we are missing any standard slots.
+    const existingTimes = new Set(record.timeBlocks.map(b => b.time));
+    const missingSlots = TIME_SLOTS.filter(t => !existingTimes.has(t));
+
+    if (missingSlots.length === 0) return record;
+
+    const config = await getBioClockConfig();
+    const newBlocks: TimeBlock[] = missingSlots.map((time) => {
+        const { locked, content } = calculateBioLocks(time, config);
+        return {
+            id: `${record.date}-${time}`,
+            time,
+            plan: { content: content, isPrimary: false, isBioLocked: locked },
+            do: { status: 'none', actualContent: '' },
+            check: { efficiency: null, tags: [], comment: '' },
+        };
+    });
+
+    // Merge and Sort
+    const mergedBlocks = [...record.timeBlocks, ...newBlocks].sort((a, b) => {
+        const [h1, m1] = a.time.split(':').map(Number);
+        const [h2, m2] = b.time.split(':').map(Number);
+        return (h1 * 60 + m1) - (h2 * 60 + m2);
+    });
+
+    return { ...record, timeBlocks: mergedBlocks };
+};
+
 export const getDailyRecord = async (date: string): Promise<DailyRecord> => {
+  let record: DailyRecord | null = null;
+  
   if (supabase) {
     const { data: { user } } = await (supabase.auth as any).getUser();
     if (user) {
@@ -151,23 +185,28 @@ export const getDailyRecord = async (date: string): Promise<DailyRecord> => {
         .eq('user_id', user.id)
         .single();
       
-      if (data) return data.data as DailyRecord;
-      
-      // If no record, create empty and save
-      const newRecord = await createEmptyDay(date);
-      await saveDailyRecord(newRecord);
-      return newRecord;
+      if (data) record = data.data as DailyRecord;
     }
+  } else {
+    // Fallback
+    const stored = localStorage.getItem(STORAGE_KEYS.DAILY_RECORDS);
+    const records: Record<string, DailyRecord> = stored ? JSON.parse(stored) : {};
+    if (records[date]) record = records[date];
   }
 
-  // Fallback
-  const stored = localStorage.getItem(STORAGE_KEYS.DAILY_RECORDS);
-  const records: Record<string, DailyRecord> = stored ? JSON.parse(stored) : {};
-  if (!records[date]) {
-    records[date] = await createEmptyDay(date);
-    saveDailyRecord(records[date]); // Sync save for local
+  if (record) {
+      // Ensure 24h coverage for existing records
+      const updatedRecord = await ensureTimeBlocksCoverage(record);
+      if (updatedRecord.timeBlocks.length !== record.timeBlocks.length) {
+          await saveDailyRecord(updatedRecord); // Sync update
+      }
+      return updatedRecord;
   }
-  return records[date];
+  
+  // If no record, create empty and save
+  const newRecord = await createEmptyDay(date);
+  await saveDailyRecord(newRecord);
+  return newRecord;
 };
 
 export const getDailyRecordsRange = async (startDate: string, endDate: string): Promise<DailyRecord[]> => {
@@ -190,13 +229,11 @@ export const getDailyRecordsRange = async (startDate: string, endDate: string): 
                 .eq('user_id', user.id);
             
             const fetchedRecords = (data || []).map((d: any) => d.data as DailyRecord);
-            // We might want to fill missing days with empty structure, but for Summary review, existing ones are enough.
-            // But to return aligned array:
             const lookup = new Map(fetchedRecords.map((r) => [r.date, r]));
             const results = [];
             for (const date of dates) {
-                if(lookup.has(date)) results.push(lookup.get(date)!);
-                else results.push(await createEmptyDay(date)); // Create in memory, don't necessarily save yet
+                if(lookup.has(date)) results.push(await ensureTimeBlocksCoverage(lookup.get(date)!));
+                else results.push(await createEmptyDay(date));
             }
             return results;
         }
@@ -204,16 +241,23 @@ export const getDailyRecordsRange = async (startDate: string, endDate: string): 
 
     // Fallback
     const stored = localStorage.getItem(STORAGE_KEYS.DAILY_RECORDS);
-    const records: Record<string, DailyRecord> = stored ? JSON.parse(stored) : {};
-    const results = [];
+    const records = (stored ? JSON.parse(stored) : {}) as Record<string, DailyRecord>;
+    const results: DailyRecord[] = [];
     for (const date of dates) {
-        if(records[date]) results.push(records[date]);
+        if(records[date]) results.push(await ensureTimeBlocksCoverage(records[date]));
         else results.push(await createEmptyDay(date));
     }
     return results;
 };
 
 export const saveDailyRecord = async (record: DailyRecord) => {
+  // Always ensure blocks are sorted by time before saving, in case splitting added out-of-order blocks
+  record.timeBlocks.sort((a, b) => {
+      const [h1, m1] = a.time.split(':').map(Number);
+      const [h2, m2] = b.time.split(':').map(Number);
+      return (h1 * 60 + m1) - (h2 * 60 + m2);
+  });
+
   if (supabase) {
     const { data: { user } } = await (supabase.auth as any).getUser();
     if (user) {

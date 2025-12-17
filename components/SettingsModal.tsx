@@ -3,7 +3,7 @@ import { BioClockConfig } from '../types';
 import { getBioClockConfig, saveBioClockConfig } from '../services/storage';
 import { REGISTRATION_INVITE_CODE } from '../constants';
 import { supabase, disconnectSupabaseConnection } from '../src/supabaseClient';
-import { X, Save, Clock, Trash2, Plus, User, Settings, Shield } from 'lucide-react';
+import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -16,7 +16,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [bioConfig, setBioConfig] = useState<BioClockConfig>({
     sleepWindow: ["23:00", "07:00"],
-    meals: []
+    meals: [],
+    enableSleepFold: true
   });
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
@@ -33,7 +34,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   const handleSaveBio = async () => {
     await saveBioClockConfig(bioConfig);
-    alert("生物钟设置已保存！注意：更改主要应用于之后创建的新日期。");
+    // Force reload to apply bio clock changes immediately to the view filtering
+    window.location.reload(); 
   };
 
   const updateMeal = (index: number, field: keyof typeof bioConfig.meals[0], value: any) => {
@@ -80,7 +82,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     <TabButton id="general" label="常规设置" icon={Settings} />
                 </div>
             </div>
-            <div className="text-xs text-slate-400 px-2">Version 1.0.0</div>
+            <div className="text-xs text-slate-400 px-2">Version 1.1.0</div>
         </div>
 
         {/* Content Area */}
@@ -134,10 +136,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                              <h3 className="text-lg font-bold text-slate-800">生物钟配置</h3>
                              <button onClick={handleSaveBio} className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium"><Save className="w-4 h-4"/> 保存</button>
                         </div>
-                        <p className="text-sm text-slate-500 mb-6">配置睡眠和用餐时间，系统将在每日计划中自动锁定这些时间段。</p>
+                        <p className="text-sm text-slate-500 mb-6">配置睡眠和用餐时间。您可以启用“折叠”来隐藏睡眠时间段。</p>
 
                         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                            <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">🌙 睡眠窗口</h4>
+                            <div className="flex justify-between items-start mb-4">
+                                <h4 className="font-semibold text-slate-800 flex items-center gap-2">🌙 睡眠窗口</h4>
+                                <button 
+                                    onClick={() => setBioConfig({...bioConfig, enableSleepFold: !bioConfig.enableSleepFold})}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${bioConfig.enableSleepFold ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500'}`}
+                                >
+                                    {bioConfig.enableSleepFold ? <EyeOff className="w-3 h-3"/> : <Eye className="w-3 h-3"/>}
+                                    {bioConfig.enableSleepFold ? '已折叠' : '展开显示'}
+                                </button>
+                            </div>
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-400 uppercase mb-2">入睡时间</label>

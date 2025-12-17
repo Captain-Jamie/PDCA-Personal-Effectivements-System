@@ -8,14 +8,16 @@ export const BIO_CLOCK_CONFIG: BioClockConfig = {
   meals: [
     { name: "午餐", time: "12:00", duration: 60 },
     { name: "晚餐", time: "18:00", duration: 60 }
-  ]
+  ],
+  enableSleepFold: true // Default enabled
 };
 
-// Generate time slots from 07:00 to 23:00 in 30 min intervals
+// Generate time slots from 00:00 to 23:30 in 30 min intervals (24 Hours)
 export const TIME_SLOTS: string[] = [];
-let hour = 7;
+let hour = 0;
 let min = 0;
-while (hour < 23 || (hour === 23 && min === 0)) {
+// Loop until 23:30
+while (hour < 24) {
   const hStr = hour.toString().padStart(2, '0');
   const mStr = min.toString().padStart(2, '0');
   TIME_SLOTS.push(`${hStr}:${mStr}`);
