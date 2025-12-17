@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewMode, DailyRecord } from './types';
-import { getDailyRecord, saveDailyRecord } from './services/storage';
+import { getDailyRecord, saveDailyRecord, resetDailyRecord } from './services/storage';
 import { supabase, isSupabaseConfigured, disconnectSupabaseConnection } from './src/supabaseClient';
 import DailyView from './components/DailyView';
 import WeeklyView from './components/WeeklyView';
@@ -96,6 +96,11 @@ const App: React.FC = () => {
   const handleLogout = async () => {
       if(supabase) await (supabase.auth as any).signOut();
   };
+  
+  const handleResetData = async () => {
+      const empty = await resetDailyRecord(currentDateStr);
+      setDailyRecord(empty);
+  };
 
   // -- Render Logic --
 
@@ -183,7 +188,7 @@ const App: React.FC = () => {
              <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
-                title="生物钟设置"
+                title="设置"
              >
                 <Settings className="w-5 h-5" />
              </button>
@@ -235,6 +240,7 @@ const App: React.FC = () => {
       <SettingsModal 
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        onResetToday={handleResetData}
       />
 
       {/* Auth Modal for Manual Login (Only shown if configured but not logged in) */}

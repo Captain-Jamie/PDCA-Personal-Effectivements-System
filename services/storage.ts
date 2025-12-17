@@ -111,7 +111,7 @@ const calculateBioLocks = (time: string, config: BioClockConfig) => {
 };
 
 // 2. Daily Record
-const createEmptyDay = async (date: string): Promise<DailyRecord> => {
+export const createEmptyDay = async (date: string): Promise<DailyRecord> => {
   const config = await getBioClockConfig();
   
   const timeBlocks: TimeBlock[] = TIME_SLOTS.map((time) => {
@@ -198,6 +198,13 @@ export const getDailyRecord = async (date: string): Promise<DailyRecord> => {
   const newRecord = await createEmptyDay(date);
   await saveDailyRecord(newRecord);
   return newRecord;
+};
+
+export const resetDailyRecord = async (date: string): Promise<DailyRecord> => {
+    // Re-create empty day (respects bio clock)
+    const empty = await createEmptyDay(date);
+    await saveDailyRecord(empty);
+    return empty;
 };
 
 export const getDailyRecordsRange = async (startDate: string, endDate: string): Promise<DailyRecord[]> => {

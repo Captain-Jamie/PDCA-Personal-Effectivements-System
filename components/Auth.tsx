@@ -53,7 +53,8 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
             }
             throw error;
         }
-        setMsg('注册成功！');
+        setMsg('注册成功，请登录');
+        setMode('login');
       } else {
         const { error } = await (supabase.auth as any).signInWithPassword({
           email,

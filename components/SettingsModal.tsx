@@ -3,16 +3,17 @@ import { BioClockConfig } from '../types';
 import { getBioClockConfig, saveBioClockConfig } from '../services/storage';
 import { REGISTRATION_INVITE_CODE } from '../constants';
 import { supabase, disconnectSupabaseConnection } from '../src/supabaseClient';
-import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff } from 'lucide-react';
+import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff, RefreshCw } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onResetToday: () => Promise<void>;
 }
 
 type SettingsTab = 'account' | 'bio' | 'general';
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetToday }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [bioConfig, setBioConfig] = useState<BioClockConfig>({
     sleepWindow: ["23:00", "07:00"],
@@ -54,6 +55,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       ...bioConfig,
       meals: [...bioConfig.meals, { name: "加餐", time: "15:00", duration: 30 }]
     });
+  };
+
+  const handleReset = async () => {
+      if(confirm("确定要清空今日的所有记录吗？（生物钟设置不会受到影响）此操作无法撤销。")) {
+          await onResetToday();
+          alert("今日数据已重置。");
+          onClose();
+      }
   };
 
   if (!isOpen) return null;
@@ -191,12 +200,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
                 {/* GENERAL TAB */}
                 {activeTab === 'general' && (
-                    <div className="space-y-6 animate-fade-in text-center py-10">
-                        <div className="bg-slate-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                            <Settings className="w-8 h-8 text-slate-300" />
+                    <div className="space-y-6 animate-fade-in py-4">
+                        <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-sm">
+                            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Settings className="w-5 h-5 text-slate-500"/> 页面数据管理</h3>
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                <div>
+                                    <h4 className="font-semibold text-slate-700 text-sm">重置今日数据</h4>
+                                    <p className="text-xs text-slate-500 mt-1">清空今日的所有计划、执行和检查记录。生物钟配置将保留。</p>
+                                </div>
+                                <button 
+                                    onClick={handleReset}
+                                    className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-100 hover:text-red-600 transition-colors flex items-center gap-2 shadow-sm"
+                                >
+                                    <RefreshCw className="w-4 h-4" />
+                                    清空并重置
+                                </button>
+                            </div>
                         </div>
-                        <h3 className="text-lg font-bold text-slate-700">更多功能开发中</h3>
-                        <p className="text-slate-500 text-sm max-w-xs mx-auto">主题切换、通知设置、数据备份等功能将在后续版本中推出。</p>
+
+                        <div className="text-center py-6">
+                            <p className="text-slate-400 text-sm">更多常规设置（主题、通知）即将推出。</p>
+                        </div>
                     </div>
                 )}
 
