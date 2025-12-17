@@ -409,7 +409,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
   const saveBlock = () => {
     const startMin = timeToMinutes(editStartTime);
     const endMin = timeToMinutes(editEndTime);
-    if (endMin <= startMin) { alert("结束时间必须晚于开始时间"); return; }
+    if (endMin < startMin) { alert("结束时间不能早于开始时间"); return; } // Allow same time (point events)
 
     const newBlocks = record.timeBlocks.map(b => {
       const blockStart = timeToMinutes(b.time);
@@ -417,11 +417,14 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       const nextBlock = record.timeBlocks[currentIdx + 1];
       const blockEnd = nextBlock ? timeToMinutes(nextBlock.time) : blockStart + 60;
 
+      const isTarget = selectedBlockId === b.id;
       const isOverlapping = (startMin < blockEnd) && (endMin > blockStart);
-      if (!isOverlapping) return b;
+      
+      // If it is the selected block, we update it regardless of overlap calc (handles 0-duration blocks like WakeUp)
+      if (!isOverlapping && !isTarget) return b;
 
       const newB = { ...b };
-      const isStartBlock = (startMin >= blockStart && startMin < blockEnd);
+      const isStartBlock = (startMin >= blockStart && startMin < blockEnd) || isTarget;
 
       if (editType === 'plan') {
         if (newB.plan.isBioLocked) return b;
