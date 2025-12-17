@@ -596,12 +596,13 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
 
                         {/* Merge/Split Handle */}
                         {!isLocked && (
-                             <div className="absolute bottom-0 left-0 w-full h-1 flex justify-center z-20 opacity-0 group-hover/cell:opacity-100 transition-opacity">
-                                {canSplitPlan ? (
+                             <div className="absolute bottom-0 left-0 w-full h-1 flex justify-center items-center gap-1 z-20 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                                {canSplitPlan && (
                                     <button onClick={() => handleMergeAction(block.id, 'plan', 'split')} className="bg-white border border-slate-300 text-red-500 rounded-full p-0.5 shadow-sm hover:bg-red-50 -mb-2.5" title="拆分单元格"><Unlink className="w-3 h-3"/></button>
-                                ) : canMergePlanDown ? (
+                                )}
+                                {canMergePlanDown && (
                                     <button onClick={() => handleMergeAction(block.id, 'plan', 'merge')} className="bg-white border border-slate-300 text-brand-500 rounded-full p-0.5 shadow-sm hover:bg-brand-50 -mb-2.5" title="合并下一行"><Link className="w-3 h-3"/></button>
-                                ) : null}
+                                )}
                              </div>
                         )}
                     </div>
@@ -630,12 +631,13 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
 
                          {/* Merge/Split Handle */}
                         {!isLocked && (
-                             <div className="absolute bottom-0 left-0 w-full h-1 flex justify-center z-20 opacity-0 group-hover/cell:opacity-100 transition-opacity">
-                                {canSplitDo ? (
+                             <div className="absolute bottom-0 left-0 w-full h-1 flex justify-center items-center gap-1 z-20 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                                {canSplitDo && (
                                     <button onClick={() => handleMergeAction(block.id, 'do', 'split')} className="bg-white border border-slate-300 text-red-500 rounded-full p-0.5 shadow-sm hover:bg-red-50 -mb-2.5" title="拆分单元格"><Unlink className="w-3 h-3"/></button>
-                                ) : canMergeDoDown ? (
+                                )}
+                                {canMergeDoDown && (
                                     <button onClick={() => handleMergeAction(block.id, 'do', 'merge')} className="bg-white border border-slate-300 text-brand-500 rounded-full p-0.5 shadow-sm hover:bg-brand-50 -mb-2.5" title="合并下一行"><Link className="w-3 h-3"/></button>
-                                ) : null}
+                                )}
                             </div>
                         )}
                     </div>
