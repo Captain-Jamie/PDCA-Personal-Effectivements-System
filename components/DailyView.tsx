@@ -289,6 +289,13 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
           if (nextIdx >= newBlocks.length) return;
 
           const blockToMerge = newBlocks[nextIdx];
+          
+          // Check if target is bio-locked (fixed)
+          if (blockToMerge.plan.isBioLocked) {
+              alert("不能与固定时间段（如生物钟、睡眠时间）合并");
+              return;
+          }
+
           // FIX: Calculate new span by adding the target block's span (which might be > 1 if already merged)
           const nextSpan = (col === 'plan' ? blockToMerge.plan.span : blockToMerge.do.span) || 1;
           const newSpan = currentSpan + nextSpan;
@@ -548,10 +555,22 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
              const renderCheck = checkSpan > 0; // Sync Check with Do
 
              // Determine next blocks for Handles
-             const canMergePlanDown = planSpan > 0 && (idx + planSpan) < visibleBlocks.length;
+             const currentFullIdx = record.timeBlocks.findIndex(b => b.id === block.id);
+             
+             // Plan Merge Check
+             const nextPlanFullIdx = currentFullIdx + planSpan;
+             const nextPlanBlockFull = record.timeBlocks[nextPlanFullIdx];
+             const isNextPlanLocked = nextPlanBlockFull?.plan.isBioLocked;
+             
+             const canMergePlanDown = planSpan > 0 && nextPlanBlockFull && !isNextPlanLocked;
              const canSplitPlan = planSpan > 1;
 
-             const canMergeDoDown = doSpan > 0 && (idx + doSpan) < visibleBlocks.length;
+             // Do Merge Check
+             const nextDoFullIdx = currentFullIdx + doSpan;
+             const nextDoBlockFull = record.timeBlocks[nextDoFullIdx];
+             const isNextDoLocked = nextDoBlockFull?.plan.isBioLocked; // Even for Do, we respect Bio Lock structure
+             
+             const canMergeDoDown = doSpan > 0 && nextDoBlockFull && !isNextDoLocked;
              const canSplitDo = doSpan > 1;
 
              return (
