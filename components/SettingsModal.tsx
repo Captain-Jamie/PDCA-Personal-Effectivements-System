@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BioClockConfig } from '../types';
 import { getBioClockConfig, saveBioClockConfig } from '../services/storage';
 import { supabase, disconnectSupabaseConnection } from '../src/supabaseClient';
-import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff, RefreshCw, KeyRound, Check } from 'lucide-react';
+import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff, RefreshCw, KeyRound, Check, Info, BookOpen, Target, ArrowRight } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -10,10 +10,10 @@ interface SettingsModalProps {
   onResetToday: () => Promise<void>;
 }
 
-type SettingsTab = 'account' | 'bio' | 'general';
+type SettingsTab = 'account' | 'bio' | 'general' | 'about';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetToday }) => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('account');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('about'); // Default to About for new users contextually, or stick to account. Let's keep account or change if requested. Keeping account default but adding tab.
   const [bioConfig, setBioConfig] = useState<BioClockConfig>({
     sleepWindow: ["23:00", "07:00"],
     meals: [],
@@ -121,9 +121,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
                     <TabButton id="account" label="账户设置" icon={User} />
                     <TabButton id="bio" label="生物钟设置" icon={Clock} />
                     <TabButton id="general" label="常规设置" icon={Settings} />
+                    <TabButton id="about" label="应用介绍" icon={Info} />
                 </div>
             </div>
-            <div className="hidden md:block text-xs text-slate-400 px-2">Version 1.1.0</div>
+            <div className="hidden md:block text-xs text-slate-400 px-2">Version 1.2.0</div>
         </div>
 
         {/* Content Area */}
@@ -207,7 +208,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
                              <h3 className="text-lg font-bold text-slate-800">生物钟配置</h3>
                              <button onClick={handleSaveBio} className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium"><Save className="w-4 h-4"/> <span className="hidden md:inline">保存</span></button>
                         </div>
-                        <p className="text-sm text-slate-500 mb-6">配置睡眠和用餐时间。您可以启用“折叠”来隐藏睡眠时间段。</p>
+                        <p className="text-sm text-slate-500 mb-6">配置睡眠和用餐时间。起床时间将作为每日的第一个打卡项。</p>
 
                         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
                             <div className="flex justify-between items-start mb-4">
@@ -228,6 +229,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
                                 <div>
                                     <label className="block text-xs font-bold text-slate-400 uppercase mb-2">起床时间</label>
                                     <input type="time" value={bioConfig.sleepWindow[1]} onChange={(e) => setBioConfig({...bioConfig, sleepWindow: [bioConfig.sleepWindow[0], e.target.value]})} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"/>
+                                    <p className="text-[10px] text-brand-600 mt-1">* 此时间将自动生成为当日的第一行“起床”任务。</p>
                                 </div>
                             </div>
                         </div>
@@ -286,6 +288,85 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
 
                         <div className="text-center py-6">
                             <p className="text-slate-400 text-sm">更多常规设置（主题、通知）即将推出。</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ABOUT TAB */}
+                {activeTab === 'about' && (
+                    <div className="space-y-8 animate-fade-in py-2">
+                        {/* What is PDCA */}
+                        <section>
+                            <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <BookOpen className="w-6 h-6 text-brand-600"/> 
+                                什么是 PDCA？
+                            </h3>
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-slate-700 text-sm leading-relaxed space-y-4">
+                                <p>
+                                    PDCA 循环（Plan-Do-Check-Act）是一种广泛应用于质量管理和个人效能提升的迭代模型。它通过四个连续的步骤，帮助您持续改进工作流程和个人习惯。
+                                </p>
+                                <div className="grid grid-cols-2 gap-4 mt-4">
+                                    <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                        <span className="block font-bold text-brand-600 mb-1">P - Plan (计划)</span>
+                                        <span className="text-slate-500 text-xs">设定目标，制定实现目标的具体步骤和时间表。</span>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                        <span className="block font-bold text-brand-600 mb-1">D - Do (执行)</span>
+                                        <span className="text-slate-500 text-xs">按计划付诸实践，并记录实际执行的过程和偏差。</span>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                        <span className="block font-bold text-brand-600 mb-1">C - Check (检查)</span>
+                                        <span className="text-slate-500 text-xs">评估结果，对比计划与实际，分析效率和问题。</span>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                        <span className="block font-bold text-brand-600 mb-1">A - Act (行动)</span>
+                                        <span className="text-slate-500 text-xs">总结经验，标准化成功做法，改进失败点，开启下一个循环。</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* How to use */}
+                        <section>
+                            <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <Target className="w-6 h-6 text-brand-600"/> 
+                                如何使用本系统？
+                            </h3>
+                            <div className="space-y-6">
+                                <div className="flex gap-4">
+                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-100 text-brand-600 font-bold flex items-center justify-center">1</div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">配置生物钟 (Set Up)</h4>
+                                        <p className="text-sm text-slate-600 mt-1">
+                                            在“生物钟设置”中设定您的入睡和起床时间。系统会自动折叠睡眠时间，并以<span className="font-bold text-brand-600">起床时间作为每日的第一行</span>，作为您的“早起打卡”标志。
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-100 text-brand-600 font-bold flex items-center justify-center">2</div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">每日计划与执行 (Plan & Do)</h4>
+                                        <p className="text-sm text-slate-600 mt-1">
+                                            左侧填写入计划，中间记录实际执行情况。如果实际情况与计划一致，直接选择“完成”即可自动填充；否则请记录真实偏差。
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-100 text-brand-600 font-bold flex items-center justify-center">3</div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">每日闭环 (Review & Act)</h4>
+                                        <p className="text-sm text-slate-600 mt-1">
+                                            点击右下角的浮动按钮结束一天。系统会计算当天的完成率和效率，引导您进行总结，并直接规划明日的 2 个核心任务，确保每天都在进步。
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div className="bg-brand-50 border border-brand-100 p-4 rounded-xl text-center">
+                            <p className="text-brand-800 text-sm font-medium">
+                                "凡事预则立，不预则废。" —— 祝您在 PDCA Flow 中找到自己的节奏。
+                            </p>
                         </div>
                     </div>
                 )}
