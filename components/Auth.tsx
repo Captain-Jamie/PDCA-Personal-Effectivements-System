@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured, setupSupabaseConnection } from '../src/supabaseClient';
 import { LayoutDashboard, LogIn, UserPlus, Loader2, CloudCog, X, ShieldCheck, Mail, Lock, KeyRound, ArrowRight, RefreshCw, Send } from 'lucide-react';
-import { REGISTRATION_INVITE_CODE } from '../constants';
 
 interface AuthProps {
     onClose?: () => void;
@@ -24,7 +23,6 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otp, setOtp] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
   
   // OTP State
   const [otpSent, setOtpSent] = useState(false);
@@ -115,11 +113,6 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
       e.preventDefault();
       if (!supabase) return;
 
-      if (inviteCode !== REGISTRATION_INVITE_CODE) {
-          setError(true);
-          setMsg("邀请码错误");
-          return;
-      }
       if (password !== confirmPassword) {
           setError(true);
           setMsg("两次输入的密码不一致");
@@ -306,10 +299,6 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                     {/* SIGN UP VIEW */}
                     {view === 'signup' && (
                          <form onSubmit={handleSignUp} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><ShieldCheck className="w-4 h-4 text-brand-500"/> 邀请码</label>
-                                <input type="text" required value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="请输入邀请码" />
-                            </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">邮箱</label>
                                 <div className="flex gap-2">

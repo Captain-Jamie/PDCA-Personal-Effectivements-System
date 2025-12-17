@@ -1,8 +1,5 @@
 import { BioClockConfig, WeeklyPlan } from './types';
 
-// 简单的邀请码，用于防止恶意注册
-export const REGISTRATION_INVITE_CODE = "PDCA2025";
-
 export const BIO_CLOCK_CONFIG: BioClockConfig = {
   sleepWindow: ["23:00", "07:00"],
   meals: [
@@ -20,7 +17,7 @@ while (hour < 24) {
   const hStr = hour.toString().padStart(2, '0');
   const mStr = "00";
   TIME_SLOTS.push(`${hStr}:${mStr}`);
-  hour++;
+  hour++; // Increment by 1 hour
 }
 
 export const INITIAL_TASK_POOL = [

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BioClockConfig } from '../types';
 import { getBioClockConfig, saveBioClockConfig } from '../services/storage';
-import { REGISTRATION_INVITE_CODE } from '../constants';
 import { supabase, disconnectSupabaseConnection } from '../src/supabaseClient';
 import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff, RefreshCw, KeyRound, Check } from 'lucide-react';
 
@@ -141,13 +140,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
                                 <div>
                                     <label className="block text-xs font-bold text-slate-400 uppercase mb-1">当前用户</label>
                                     <div className="text-slate-800 font-medium break-all">{userEmail || '本地访客模式 (未登录)'}</div>
-                                </div>
-                                <div className="pt-2 border-t border-slate-200">
-                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">注册邀请码</label>
-                                    <div className="flex items-center gap-2">
-                                        <code className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-sm font-mono">{REGISTRATION_INVITE_CODE}</code>
-                                        <span className="text-xs text-slate-500">此系统为邀请制，注册需凭此码。</span>
-                                    </div>
                                 </div>
                             </div>
                         </div>
