@@ -25,6 +25,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passMsg, setPassMsg] = useState('');
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -37,6 +39,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
       setPassMsg('');
       setNewPassword('');
       setConfirmPassword('');
+      setShowNewPwd(false);
+      setShowConfirmPwd(false);
     }
   }, [isOpen]);
 
@@ -152,11 +156,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">新密码</label>
-                                            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none" placeholder="输入新密码" />
+                                            <div className="relative">
+                                                <input type={showNewPwd ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none pr-10" placeholder="输入新密码" />
+                                                <button type="button" onClick={() => setShowNewPwd(!showNewPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                                    {showNewPwd ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                                </button>
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">确认新密码</label>
-                                            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none" placeholder="再次输入" />
+                                            <div className="relative">
+                                                <input type={showConfirmPwd ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none pr-10" placeholder="再次输入" />
+                                                <button type="button" onClick={() => setShowConfirmPwd(!showConfirmPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                                    {showConfirmPwd ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex justify-between items-center">
@@ -197,7 +211,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
 
                         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
                             <div className="flex justify-between items-start mb-4">
-                                <h4 className="font-semibold text-slate-800 flex items-center gap-2">🌙 睡眠窗口</h4>
+                                <h4 className="font-semibold text-slate-800 flex items-center gap-2">🌙 睡眠时间</h4>
                                 <button 
                                     onClick={() => setBioConfig({...bioConfig, enableSleepFold: !bioConfig.enableSleepFold})}
                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${bioConfig.enableSleepFold ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500'}`}
@@ -220,7 +234,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
 
                         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
                             <div className="flex justify-between items-center mb-4">
-                                <h4 className="font-semibold text-slate-800 flex items-center gap-2">🍽️ 用餐与固定锚点</h4>
+                                <h4 className="font-semibold text-slate-800 flex items-center gap-2">🍽️ 用餐与固定安排</h4>
                                 <button onClick={addMeal} className="text-xs flex items-center gap-1 text-brand-600 font-bold hover:underline"><Plus className="w-3 h-3" /> 添加锚点</button>
                             </div>
                             <div className="space-y-3">

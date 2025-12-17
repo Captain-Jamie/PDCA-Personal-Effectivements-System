@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured, setupSupabaseConnection } from '../src/supabaseClient';
-import { LayoutDashboard, LogIn, UserPlus, Loader2, CloudCog, X, ShieldCheck, Mail, Lock, KeyRound, ArrowRight, RefreshCw, Send } from 'lucide-react';
+import { LayoutDashboard, LogIn, UserPlus, Loader2, CloudCog, X, ShieldCheck, Mail, Lock, KeyRound, ArrowRight, RefreshCw, Send, Eye, EyeOff } from 'lucide-react';
 
 interface AuthProps {
     onClose?: () => void;
@@ -23,6 +23,10 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otp, setOtp] = useState('');
+  
+  // Password Visibility State
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   // OTP State
   const [otpSent, setOtpSent] = useState(false);
@@ -50,6 +54,8 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
       setOtp('');
       setPassword('');
       setConfirmPassword('');
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       // Keep email for convenience
   };
 
@@ -228,7 +234,12 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Anon Key</label>
-                            <input type="password" required value={configKey} onChange={(e) => setConfigKey(e.target.value)} className="w-full px-4 py-2 border rounded-lg" placeholder="Key..." />
+                            <div className="relative">
+                                <input type={showPassword ? "text" : "password"} required value={configKey} onChange={(e) => setConfigKey(e.target.value)} className="w-full px-4 py-2 border rounded-lg pr-10" placeholder="Key..." />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    {showPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                </button>
+                            </div>
                         </div>
                         <button type="submit" className="w-full py-3 bg-brand-600 text-white font-bold rounded-xl mt-2">保存并连接</button>
                     </form>
@@ -268,7 +279,12 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                                         <label className="block text-sm font-medium text-slate-700">密码</label>
                                         <button type="button" onClick={() => switchView('forgot_password')} className="text-xs text-brand-600 hover:underline">忘记密码?</button>
                                     </div>
-                                    <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="••••••••" />
+                                    <div className="relative">
+                                        <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none pr-10" placeholder="••••••••" />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {showPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 <div>
@@ -315,11 +331,21 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">设置密码</label>
-                                    <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="••••••" />
+                                    <div className="relative">
+                                        <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none pr-10" placeholder="••••••" />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {showPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">确认密码</label>
-                                    <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="••••••" />
+                                    <div className="relative">
+                                        <input type={showConfirmPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none pr-10" placeholder="••••••" />
+                                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {showConfirmPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -354,11 +380,21 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">新密码</label>
-                                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="新密码" />
+                                <div className="relative">
+                                    <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none pr-10" placeholder="新密码" />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        {showPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">确认新密码</label>
-                                <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="再次输入" />
+                                <div className="relative">
+                                    <input type={showConfirmPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none pr-10" placeholder="再次输入" />
+                                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        {showConfirmPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                    </button>
+                                </div>
                             </div>
 
                             {msg && <div className={`p-3 rounded-lg text-sm ${error ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{msg}</div>}

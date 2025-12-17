@@ -380,7 +380,9 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
             setEditStartTime(block.plan.startTime || block.time);
             setEditEndTime(block.plan.endTime || defaultEnd);
         } else if (type === 'do') {
-            setEditContent(block.do.actualContent || block.plan.content);
+            // Updated logic: Only auto-fill if status is completed or content exists
+            const initialContent = block.do.actualContent || (block.do.status === 'completed' ? block.plan.content : '');
+            setEditContent(initialContent);
             setEditStatus(block.do.status);
             setEditStartTime(block.do.startTime || block.time);
             setEditEndTime(block.do.endTime || defaultEnd);
@@ -787,7 +789,21 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                         <label className="block text-xs font-semibold text-slate-500 mb-2">执行状态</label>
                         <div className="flex flex-wrap gap-2">
                             {(['completed', 'partial', 'changed', 'skipped'] as const).map(s => (
-                                <button key={s} onClick={() => setEditStatus(s)} className={`px-3 py-1 rounded-full text-xs font-medium border ${editStatus === s ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400'}`}>{STATUS_LABELS[s]}</button>
+                                <button key={s} 
+                                    onClick={() => { 
+                                        setEditStatus(s);
+                                        // If switching to completed, auto-fill plan content if available
+                                        if (s === 'completed' && selectedBlockId) {
+                                            const currentBlock = record.timeBlocks.find(b => b.id === selectedBlockId);
+                                            if (currentBlock && !editContent) {
+                                                setEditContent(currentBlock.plan.content);
+                                            }
+                                        }
+                                    }} 
+                                    className={`px-3 py-1 rounded-full text-xs font-medium border ${editStatus === s ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400'}`}
+                                >
+                                    {STATUS_LABELS[s]}
+                                </button>
                             ))}
                         </div>
                      </div>

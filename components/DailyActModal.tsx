@@ -133,7 +133,6 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex justify-between items-center">
                  <div>
                     <h3 className="font-semibold text-blue-900">今日检查指标</h3>
-                    <p className="text-xs text-blue-600/80">基于今日时间轴数据自动计算</p>
                  </div>
                  <div className="flex gap-4 text-sm text-blue-800">
                     <div className="px-3 py-1 bg-white rounded-md shadow-sm">
@@ -182,7 +181,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
                       value={summary}
                       onChange={(e) => setSummary(e.target.value)}
                       className="w-full h-96 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none text-slate-700"
-                      placeholder="结合左侧的执行记录，复盘今天：
+                      placeholder="今日复盘：
 1. 主要任务完成了吗？
 2. 哪个时间段效率最高/最低，为什么？
 3. 明天需要改进什么？"
@@ -195,7 +194,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
                   onClick={handleSummarySave}
                   className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 font-medium transition-colors shadow-lg shadow-brand-200"
                 >
-                  下一步：计划明日 <ArrowRight className="w-4 h-4" />
+                  计划明日 <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
