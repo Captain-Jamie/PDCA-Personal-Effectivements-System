@@ -86,32 +86,32 @@ export const saveBioClockConfig = async (config: BioClockConfig) => {
 };
 
 /**
- * Updates the Bio Config for the CURRENT day's record (Today).
- * This allows "effective immediately" changes when user modifies settings,
- * without affecting historical records.
+ * Updates the Bio Config for the CURRENT day AND FUTURE records.
+ * Historical records (yesterday and before) are untouched.
  */
-export const updateTodayRecordWithBioConfig = async (config: BioClockConfig) => {
+export const updateFutureRecordsWithBioConfig = async (config: BioClockConfig) => {
     const today = new Date().toISOString().split('T')[0];
-    let record: DailyRecord | null = null;
+    let recordsToUpdate: DailyRecord[] = [];
     
-    // Fetch today's raw record
     if (supabase) {
         const { data: { user } } = await (supabase.auth as any).getUser();
         if (user) {
-            const { data } = await supabase.from('daily_records').select('data').eq('date', today).eq('user_id', user.id).single();
-            if (data) record = data.data as DailyRecord;
+             const { data } = await supabase
+                .from('daily_records')
+                .select('data')
+                .gte('date', today)
+                .eq('user_id', user.id);
+             if (data) recordsToUpdate = data.map((d: any) => d.data as DailyRecord);
         }
     } else {
         const stored = localStorage.getItem(STORAGE_KEYS.DAILY_RECORDS);
-        const records = stored ? JSON.parse(stored) : {};
-        if (records[today]) record = records[today];
+        const allRecords = stored ? JSON.parse(stored) : {};
+        recordsToUpdate = Object.values(allRecords).filter((r: any) => r.date >= today) as DailyRecord[];
     }
-    
-    if (record) {
-        // Apply new config logic to today's record
+
+    for (const record of recordsToUpdate) {
         const updated = applyBioClockToRecord(record, config);
-        // Save the snapshot so future reads use this config
-        updated.bioConfig = config; 
+        updated.bioConfig = config;
         await saveDailyRecord(updated);
     }
 };
