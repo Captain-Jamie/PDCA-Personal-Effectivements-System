@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BioClockConfig } from '../types';
-import { getBioClockConfig, saveBioClockConfig } from '../services/storage';
+import { getBioClockConfig, saveBioClockConfig, updateTodayRecordWithBioConfig } from '../services/storage';
 import { supabase, disconnectSupabaseConnection } from '../src/supabaseClient';
 import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff, RefreshCw, KeyRound, Check, Info, BookOpen, Target, ArrowRight } from 'lucide-react';
 
@@ -46,6 +46,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
 
   const handleSaveBio = async () => {
     await saveBioClockConfig(bioConfig);
+    // Explicitly update today's record to use new config, leaving history untouched
+    await updateTodayRecordWithBioConfig(bioConfig);
     // Force reload to apply bio clock changes immediately to the view filtering
     window.location.reload(); 
   };

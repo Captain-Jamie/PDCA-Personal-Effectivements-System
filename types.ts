@@ -75,6 +75,7 @@ export interface DailyRecord {
   primaryTasks: [string, string];
   daySummary: string;
   timeBlocks: TimeBlock[];
+  bioConfig?: BioClockConfig; // Snapshot of bio settings for this specific day
 }
 
 // Helper types for UI

@@ -85,6 +85,37 @@ export const saveBioClockConfig = async (config: BioClockConfig) => {
   localStorage.setItem(STORAGE_KEYS.BIO_CLOCK, JSON.stringify(config));
 };
 
+/**
+ * Updates the Bio Config for the CURRENT day's record (Today).
+ * This allows "effective immediately" changes when user modifies settings,
+ * without affecting historical records.
+ */
+export const updateTodayRecordWithBioConfig = async (config: BioClockConfig) => {
+    const today = new Date().toISOString().split('T')[0];
+    let record: DailyRecord | null = null;
+    
+    // Fetch today's raw record
+    if (supabase) {
+        const { data: { user } } = await (supabase.auth as any).getUser();
+        if (user) {
+            const { data } = await supabase.from('daily_records').select('data').eq('date', today).eq('user_id', user.id).single();
+            if (data) record = data.data as DailyRecord;
+        }
+    } else {
+        const stored = localStorage.getItem(STORAGE_KEYS.DAILY_RECORDS);
+        const records = stored ? JSON.parse(stored) : {};
+        if (records[today]) record = records[today];
+    }
+    
+    if (record) {
+        // Apply new config logic to today's record
+        const updated = applyBioClockToRecord(record, config);
+        // Save the snapshot so future reads use this config
+        updated.bioConfig = config; 
+        await saveDailyRecord(updated);
+    }
+};
+
 // Helper for Bio Locked calculation
 const calculateBioLocks = (time: string, config: BioClockConfig) => {
   const [h, m] = time.split(':').map(Number);
@@ -240,6 +271,7 @@ export const createEmptyDay = async (date: string): Promise<DailyRecord> => {
     primaryTasks: ['', ''],
     daySummary: '',
     timeBlocks,
+    bioConfig: config // Save Snapshot of current config!
   };
   
   const recordWithWakeUp = applyBioClockToRecord(rawRecord, config);
@@ -258,7 +290,7 @@ export const createEmptyDay = async (date: string): Promise<DailyRecord> => {
 
 export const getDailyRecord = async (date: string): Promise<DailyRecord> => {
   let record: DailyRecord | null = null;
-  const config = await getBioClockConfig();
+  // const config = await getBioClockConfig(); // Removed global config dependency for existing records
   
   if (supabase) {
     const { data: { user } } = await (supabase.auth as any).getUser();
@@ -280,11 +312,17 @@ export const getDailyRecord = async (date: string): Promise<DailyRecord> => {
   }
 
   if (record) {
-      // Sync with current settings immediately (Immediate Effect)
-      return applyBioClockToRecord(record, config);
+      // Historical Data Protection:
+      // If the record has its own bioConfig snapshot, enforce it.
+      if (record.bioConfig) {
+           return applyBioClockToRecord(record, record.bioConfig);
+      }
+      // If no bioConfig (legacy record), return AS-IS to preserve history.
+      // Do NOT apply the current global Bio Clock.
+      return record;
   }
   
-  // If no record, create empty and save
+  // If no record, create empty and save (Uses current global config)
   const newRecord = await createEmptyDay(date);
   await saveDailyRecord(newRecord);
   return newRecord;
@@ -298,7 +336,7 @@ export const resetDailyRecord = async (date: string): Promise<DailyRecord> => {
 };
 
 export const getDailyRecordsRange = async (startDate: string, endDate: string): Promise<DailyRecord[]> => {
-    const config = await getBioClockConfig();
+    // const config = await getBioClockConfig(); // Removed
     // Generate dates in range
     const dates: string[] = [];
     const d = new Date(startDate);
@@ -338,8 +376,11 @@ export const getDailyRecordsRange = async (startDate: string, endDate: string): 
         }
     }
 
-    // Apply config sync to all fetched records
-    return results.map(r => applyBioClockToRecord(r, config));
+    // Apply config sync ONLY if snapshot exists
+    return results.map(r => {
+        if (r.bioConfig) return applyBioClockToRecord(r, r.bioConfig);
+        return r; // Return legacy as-is
+    });
 };
 
 export const saveDailyRecord = async (record: DailyRecord) => {
