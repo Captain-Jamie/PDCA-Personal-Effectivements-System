@@ -229,7 +229,10 @@ export const getDailyRecordsRange = async (startDate: string, endDate: string): 
                 .eq('user_id', user.id);
             
             const fetchedRecords = (data || []).map((d: any) => d.data as DailyRecord);
-            const lookup = new Map(fetchedRecords.map((r) => [r.date, r]));
+            // Explicitly map by date using Map<string, DailyRecord> to ensure type safety
+            const lookup = new Map<string, DailyRecord>();
+            fetchedRecords.forEach(r => lookup.set(r.date, r));
+
             const results = [];
             for (const date of dates) {
                 if(lookup.has(date)) results.push(await ensureTimeBlocksCoverage(lookup.get(date)!));

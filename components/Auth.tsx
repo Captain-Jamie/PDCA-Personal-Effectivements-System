@@ -47,7 +47,7 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
           password,
         });
         if (error) throw error;
-        setMsg('请查看您的邮箱并点击确认链接！');
+        setMsg('注册成功！');
       } else {
         const { error } = await (supabase.auth as any).signInWithPassword({
           email,
