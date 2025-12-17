@@ -108,7 +108,7 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -176,12 +176,12 @@ const DailyActModal: React.FC<DailyActModalProps> = ({ isOpen, onClose, record, 
                   </div>
 
                   {/* Right: Summary Input */}
-                  <div className="flex flex-col">
+                  <div className="flex flex-col h-full">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">今日总结</label>
                     <textarea 
                       value={summary}
                       onChange={(e) => setSummary(e.target.value)}
-                      className="flex-1 w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none text-slate-700"
+                      className="w-full h-96 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none text-slate-700"
                       placeholder="结合左侧的执行记录，复盘今天：
 1. 主要任务完成了吗？
 2. 哪个时间段效率最高/最低，为什么？

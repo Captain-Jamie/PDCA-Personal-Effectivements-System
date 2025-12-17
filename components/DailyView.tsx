@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DailyRecord, TimeBlock, ExecutionStatus, EfficiencyRating, BioClockConfig } from '../types';
-import { saveDailyRecord, exportToCSV, getBioClockConfig } from '../services/storage';
-import { Edit3, Flag, Save, Copy, ClipboardPaste, Plus, Clock, FileDown, Scissors, Trash2 } from 'lucide-react';
-import { TIME_SLOTS } from '../constants';
+import { DailyRecord, TimeBlock, ExecutionStatus, EfficiencyRating, BioClockConfig, DayTemplate } from '../types';
+import { saveDailyRecord, exportToCSV, getBioClockConfig, saveDayTemplate, getDayTemplates } from '../services/storage';
+import { Edit3, Flag, Save, Copy, ClipboardPaste, Plus, Clock, FileDown, Scissors, Trash2, Unlink, Link, LayoutTemplate, Download, Upload } from 'lucide-react';
 
 interface DailyViewProps {
   record: DailyRecord;
@@ -23,6 +22,33 @@ const EFFICIENCY_LABELS: Record<string, string> = {
     'normal': '中',
     'low': '低',
     'null': '无'
+};
+
+const getStatusColor = (status: ExecutionStatus) => {
+    switch (status) {
+        case 'completed': return 'bg-blue-50 border-blue-500 text-blue-700';
+        case 'partial': return 'bg-yellow-50 border-yellow-500 text-yellow-700';
+        case 'changed': return 'bg-purple-50 border-purple-500 text-purple-700';
+        case 'skipped': return 'bg-slate-100 border-slate-400 text-slate-500 decoration-slate-400';
+        case 'none': default: return 'bg-white border-transparent text-slate-700 hover:bg-slate-50';
+    }
+};
+
+const getEfficiencyColor = (eff: EfficiencyRating) => {
+    switch (eff) {
+        case 'high': return 'bg-green-500';
+        case 'normal': return 'bg-blue-400';
+        case 'low': return 'bg-orange-400';
+        default: return 'bg-slate-200';
+    }
+};
+
+const getEditTitle = (type: 'plan' | 'do' | 'check') => {
+    switch (type) {
+        case 'plan': return '计划 (Plan)';
+        case 'do': return '执行 (Do)';
+        case 'check': return '检查 (Check)';
+    }
 };
 
 const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct }) => {
@@ -47,6 +73,11 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
   const [isEditingPrincipal, setIsEditingPrincipal] = useState(false);
   const [tempP1, setTempP1] = useState('');
   const [tempP2, setTempP2] = useState('');
+
+  // -- Template State --
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templates, setTemplates] = useState<DayTemplate[]>([]);
+  const [newTemplateName, setNewTemplateName] = useState('');
 
   useEffect(() => {
     if (record) {
@@ -84,65 +115,41 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       }
   };
 
-  // --- Derived State: Visible Blocks & Spans ---
+  // --- Derived State: Visible Blocks ---
   const visibleBlocks = useMemo(() => {
       if (!bioConfig || !bioConfig.enableSleepFold) return record.timeBlocks;
       return record.timeBlocks.filter(b => !isTimeInSleepWindow(b.time, bioConfig));
   }, [record.timeBlocks, bioConfig]);
 
-  // Pre-calculate Row Spans for Merging
-  const blockSpans = useMemo(() => {
-      const spans = visibleBlocks.map(() => ({ plan: 1, do: 1, check: 1, renderPlan: true, renderDo: true, renderCheck: true }));
-      
-      if (visibleBlocks.length === 0) return spans;
-
-      // Calculate spans for Plan
-      for (let i = 0; i < visibleBlocks.length; i++) {
-          if (!spans[i].renderPlan) continue;
-          const currentContent = visibleBlocks[i].plan.content;
-          const isBio = visibleBlocks[i].plan.isBioLocked;
-          
-          if (!currentContent && !isBio) continue; // Don't merge empty empty cells usually, or maybe yes? Let's merge non-empty only for visual clarity, or merge identical empty ones too. Let's merge identicals.
-
-          for (let j = i + 1; j < visibleBlocks.length; j++) {
-             if (visibleBlocks[j].plan.content === currentContent && visibleBlocks[j].plan.isBioLocked === isBio) {
-                 spans[i].plan += 1;
-                 spans[j].renderPlan = false;
-                 spans[j].plan = 0;
-             } else {
-                 break;
-             }
-          }
-      }
-
-      // Calculate spans for Do
-      for (let i = 0; i < visibleBlocks.length; i++) {
-          if (!spans[i].renderDo) continue;
-          const currentContent = visibleBlocks[i].do.actualContent;
-          const currentStatus = visibleBlocks[i].do.status;
-          
-          // Merge based on Content AND Status
-          for (let j = i + 1; j < visibleBlocks.length; j++) {
-             if (visibleBlocks[j].do.actualContent === currentContent && visibleBlocks[j].do.status === currentStatus) {
-                 spans[i].do += 1;
-                 spans[j].renderDo = false;
-                 spans[j].do = 0;
-             } else {
-                 break;
-             }
-          }
-      }
-
-      // Sync Check with Do (Requirement 3)
-      for (let i = 0; i < visibleBlocks.length; i++) {
-          spans[i].renderCheck = spans[i].renderDo;
-          spans[i].check = spans[i].do;
-      }
-
-      return spans;
-  }, [visibleBlocks]);
-
   // --- Actions ---
+
+  const handleCopy = (content: string, status: ExecutionStatus | undefined, type: 'plan' | 'do', e: React.MouseEvent) => {
+      e.stopPropagation();
+      setClipboard({ content, status, type });
+  };
+
+  const handlePaste = (blockId: string, targetCol: 'plan' | 'do', e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!clipboard) return;
+
+      const newBlocks = record.timeBlocks.map(b => {
+          if (b.id !== blockId) return b;
+          
+          const newB = { ...b };
+          if (targetCol === 'plan') {
+               newB.plan.content = clipboard.content; 
+          } else {
+               newB.do.actualContent = clipboard.content;
+               if (clipboard.status && clipboard.type === 'do') newB.do.status = clipboard.status;
+          }
+          return newB;
+      });
+      
+      const newRecord = { ...record, timeBlocks: newBlocks };
+      onUpdateRecord(newRecord);
+      saveDailyRecord(newRecord);
+      setClipboard(null);
+  };
 
   const handleExport = () => {
       const rows = [
@@ -178,22 +185,26 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
     setIsEditingPrincipal(false);
   };
 
+  // --- Time Manipulation ---
+  
+  const handleDeleteTime = (blockId: string) => {
+      if (!confirm("确定要删除这个时间段吗？")) return;
+      const newBlocks = record.timeBlocks.filter(b => b.id !== blockId);
+      const newRecord = { ...record, timeBlocks: newBlocks };
+      onUpdateRecord(newRecord);
+      saveDailyRecord(newRecord);
+  };
+
   const extractContentForTime = (fullText: string, targetTime: string): { extracted: string, remaining: string } => {
       if (!fullText) return { extracted: '', remaining: '' };
-
-      // Pattern: Matches "[10:15] Task Content" or "[10:15]Task Content"
-      // Captures the content until the next "[" or end of string
       const escapedTime = targetTime.replace(':', '\\:');
       const regex = new RegExp(`\\[${escapedTime}\\]\\s*(.*?)(?=(\\n\\[|$))`, 's');
-      
       const match = fullText.match(regex);
-      
       if (match) {
-          const extracted = match[1].trim(); // The content after the time tag
-          const remaining = fullText.replace(match[0], '').trim(); // Remove the whole matched tag section
+          const extracted = match[1].trim(); 
+          const remaining = fullText.replace(match[0], '').trim(); 
           return { extracted, remaining };
       }
-
       return { extracted: '', remaining: fullText };
   };
 
@@ -217,20 +228,18 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
           return;
       }
 
-      // --- Content Migration Logic (Requirement 1) ---
+      // Migration Logic
       let newPlanContent = '';
       let newDoContent = '';
       let updatedTargetPlan = targetBlock.plan.content;
       let updatedTargetDo = targetBlock.do.actualContent;
 
-      // Check Plan
       const planExtract = extractContentForTime(targetBlock.plan.content, splitTime);
       if (planExtract.extracted) {
           newPlanContent = planExtract.extracted;
           updatedTargetPlan = planExtract.remaining;
       }
 
-      // Check Do
       const doExtract = extractContentForTime(targetBlock.do.actualContent, splitTime);
       if (doExtract.extracted) {
           newDoContent = doExtract.extracted;
@@ -240,12 +249,11 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       const newBlock: TimeBlock = {
           id: `${record.date}-${splitTime}`,
           time: splitTime,
-          plan: { ...targetBlock.plan, content: newPlanContent, startTime: splitTime, endTime: '' },
-          do: { ...targetBlock.do, actualContent: newDoContent, status: 'none', startTime: splitTime, endTime: '' },
+          plan: { ...targetBlock.plan, content: newPlanContent, startTime: splitTime, endTime: '', span: 1 },
+          do: { ...targetBlock.do, actualContent: newDoContent, status: 'none', startTime: splitTime, endTime: '', span: 1 },
           check: { efficiency: null, tags: [], comment: '' }
       };
 
-      // Update the original block
       const updatedTargetBlock = {
           ...targetBlock,
           plan: { ...targetBlock.plan, content: updatedTargetPlan },
@@ -255,7 +263,6 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       const newBlocks = [...record.timeBlocks];
       newBlocks[targetBlockIndex] = updatedTargetBlock;
       newBlocks.push(newBlock);
-      
       newBlocks.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
 
       const newRecord = { ...record, timeBlocks: newBlocks };
@@ -265,15 +272,105 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
       setSplitTime('');
   };
 
-  // --- Editor Logic ---
+  // --- Merging Logic (Handles) ---
+
+  const handleMergeAction = (blockId: string, col: 'plan' | 'do', action: 'merge' | 'split') => {
+      const idx = record.timeBlocks.findIndex(b => b.id === blockId);
+      if (idx === -1) return;
+
+      const currentBlock = record.timeBlocks[idx];
+      const newBlocks = [...record.timeBlocks];
+      const currentSpan = (col === 'plan' ? currentBlock.plan.span : currentBlock.do.span) || 1;
+
+      if (action === 'merge') {
+          // Merge with next block (increase span)
+          // Pre-condition: Next block exists and is not merged into something else (span=1)
+          const nextIdx = idx + currentSpan; // The block immediately after the current merged group
+          if (nextIdx >= newBlocks.length) return;
+
+          const newSpan = currentSpan + 1;
+          const blockToMerge = newBlocks[nextIdx];
+          
+          if (col === 'plan') {
+               newBlocks[idx] = { ...currentBlock, plan: { ...currentBlock.plan, span: newSpan } };
+               newBlocks[nextIdx] = { ...blockToMerge, plan: { ...blockToMerge.plan, span: 0 } }; // 0 means hidden
+          } else {
+               newBlocks[idx] = { ...currentBlock, do: { ...currentBlock.do, span: newSpan } };
+               newBlocks[nextIdx] = { ...blockToMerge, do: { ...blockToMerge.do, span: 0 } };
+          }
+
+      } else {
+          // Split (Decrease span by 1 from the bottom)
+          if (currentSpan <= 1) return;
+          const newSpan = currentSpan - 1;
+          const blockToReleaseIdx = idx + newSpan; // The last block currently covered
+
+          if (col === 'plan') {
+              newBlocks[idx] = { ...currentBlock, plan: { ...currentBlock.plan, span: newSpan } };
+              const releasedBlock = newBlocks[blockToReleaseIdx];
+              newBlocks[blockToReleaseIdx] = { ...releasedBlock, plan: { ...releasedBlock.plan, span: 1 } };
+          } else {
+              newBlocks[idx] = { ...currentBlock, do: { ...currentBlock.do, span: newSpan } };
+              const releasedBlock = newBlocks[blockToReleaseIdx];
+              newBlocks[blockToReleaseIdx] = { ...releasedBlock, do: { ...releasedBlock.do, span: 1 } };
+          }
+      }
+
+      const newRecord = { ...record, timeBlocks: newBlocks };
+      onUpdateRecord(newRecord);
+      saveDailyRecord(newRecord);
+  };
+
+  // --- Template Logic ---
+
+  const handleOpenTemplates = async () => {
+      const saved = await getDayTemplates();
+      setTemplates(saved);
+      setShowTemplateModal(true);
+  };
+
+  const saveCurrentAsTemplate = async () => {
+      if (!newTemplateName) return;
+      const tpl: DayTemplate = {
+          id: Date.now().toString(),
+          name: newTemplateName,
+          primaryTasks: record.primaryTasks,
+          timeBlocks: record.timeBlocks
+      };
+      await saveDayTemplate(tpl);
+      setTemplates(await getDayTemplates());
+      setNewTemplateName('');
+      alert("模板保存成功");
+  };
+
+  const loadTemplate = async (tpl: DayTemplate) => {
+      if (!confirm(`确定要加载模板 "${tpl.name}" 吗？这将覆盖当前的日程安排。`)) return;
+      
+      // Need to adjust IDs to match current date
+      const newBlocks = tpl.timeBlocks.map(b => ({
+          ...b,
+          id: `${record.date}-${b.time}`
+      }));
+      
+      const newRecord = { 
+          ...record, 
+          primaryTasks: tpl.primaryTasks,
+          timeBlocks: newBlocks 
+      };
+      
+      onUpdateRecord(newRecord);
+      await saveDailyRecord(newRecord);
+      setShowTemplateModal(false);
+  };
+
+  // --- Editor Logic (Simplified for brevity, same as before) ---
   const openEditor = (block: TimeBlock | null, type: 'plan' | 'do' | 'check', defaultTime?: string) => {
     setEditType(type);
-    
     if (block) {
         setSelectedBlockId(block.id);
         const currentIdx = record.timeBlocks.findIndex(b => b.id === block.id);
         const nextBlock = record.timeBlocks[currentIdx + 1];
-        const defaultEnd = nextBlock ? nextBlock.time : minutesToTime(timeToMinutes(block.time) + 30);
+        const defaultEnd = nextBlock ? nextBlock.time : minutesToTime(timeToMinutes(block.time) + 60);
 
         if (type === 'plan') {
             if (block.plan.isBioLocked) return;
@@ -300,7 +397,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
         const currentH = now.getHours().toString().padStart(2, '0');
         const defaultStart = defaultTime || `${currentH}:00`;
         setEditStartTime(defaultStart);
-        const endMin = timeToMinutes(defaultStart) + 30;
+        const endMin = timeToMinutes(defaultStart) + 60;
         setEditEndTime(minutesToTime(endMin));
     }
   };
@@ -308,16 +405,13 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
   const saveBlock = () => {
     const startMin = timeToMinutes(editStartTime);
     const endMin = timeToMinutes(editEndTime);
-    if (endMin <= startMin) {
-        alert("结束时间必须晚于开始时间");
-        return;
-    }
+    if (endMin <= startMin) { alert("结束时间必须晚于开始时间"); return; }
 
     const newBlocks = record.timeBlocks.map(b => {
       const blockStart = timeToMinutes(b.time);
       const currentIdx = record.timeBlocks.findIndex(x => x.id === b.id);
       const nextBlock = record.timeBlocks[currentIdx + 1];
-      const blockEnd = nextBlock ? timeToMinutes(nextBlock.time) : blockStart + 30;
+      const blockEnd = nextBlock ? timeToMinutes(nextBlock.time) : blockStart + 60;
 
       const isOverlapping = (startMin < blockEnd) && (endMin > blockStart);
       if (!isOverlapping) return b;
@@ -333,55 +427,21 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
              timePrefix = `[${editStartTime}] `;
         }
         const fullContent = timePrefix + contentToSet;
-
-        if (selectedBlockId === 'NEW' && newB.plan.content) {
-             newB.plan.content = newB.plan.content + "\n" + fullContent;
-        } else {
-             if (selectedBlockId !== 'NEW' && b.id === selectedBlockId) {
-                  newB.plan.content = contentToSet;
-                  if(editStartTime !== b.time) newB.plan.startTime = editStartTime; 
-             } else {
-                 if (newB.plan.content) {
-                     if(!newB.plan.content.includes(contentToSet)) {
-                         newB.plan.content = newB.plan.content + "\n" + fullContent;
-                     }
-                 } else {
-                     newB.plan.content = fullContent;
-                 }
-             }
-        }
+        if (selectedBlockId === 'NEW' && newB.plan.content) newB.plan.content = newB.plan.content + "\n" + fullContent;
+        else if (selectedBlockId !== 'NEW' && b.id === selectedBlockId) { newB.plan.content = contentToSet; if(editStartTime !== b.time) newB.plan.startTime = editStartTime; } 
+        else { if (newB.plan.content) { if(!newB.plan.content.includes(contentToSet)) newB.plan.content = newB.plan.content + "\n" + fullContent; } else { newB.plan.content = fullContent; } }
         if (isStartBlock) newB.plan.endTime = editEndTime; 
-
       } else if (editType === 'do') {
         let contentToSet = editContent;
         let timePrefix = "";
-        if (isStartBlock && editStartTime !== b.time) {
-             timePrefix = `[${editStartTime}] `;
-        }
+        if (isStartBlock && editStartTime !== b.time) timePrefix = `[${editStartTime}] `;
         const fullContent = timePrefix + contentToSet;
-        if (selectedBlockId === 'NEW' && newB.do.actualContent) {
-            newB.do.actualContent = newB.do.actualContent + "\n" + fullContent;
-        } else {
-             if (selectedBlockId !== 'NEW' && b.id === selectedBlockId) {
-                  newB.do.actualContent = contentToSet;
-                  newB.do.status = editStatus;
-                  if(editStartTime !== b.time) newB.do.startTime = editStartTime;
-             } else {
-                 if (newB.do.actualContent) {
-                     if(!newB.do.actualContent.includes(contentToSet)) {
-                         newB.do.actualContent = newB.do.actualContent + "\n" + fullContent;
-                     }
-                 } else {
-                     newB.do.actualContent = fullContent;
-                     newB.do.status = editStatus;
-                 }
-             }
-        }
+        if (selectedBlockId === 'NEW' && newB.do.actualContent) newB.do.actualContent = newB.do.actualContent + "\n" + fullContent;
+        else if (selectedBlockId !== 'NEW' && b.id === selectedBlockId) { newB.do.actualContent = contentToSet; newB.do.status = editStatus; if(editStartTime !== b.time) newB.do.startTime = editStartTime; }
+        else { if (newB.do.actualContent) { if(!newB.do.actualContent.includes(contentToSet)) newB.do.actualContent = newB.do.actualContent + "\n" + fullContent; } else { newB.do.actualContent = fullContent; newB.do.status = editStatus; } }
         if (isStartBlock) newB.do.endTime = editEndTime;
-
       } else if (editType === 'check' && selectedBlockId === b.id) {
-          newB.check.comment = editContent;
-          newB.check.efficiency = editEfficiency;
+          newB.check.comment = editContent; newB.check.efficiency = editEfficiency;
       }
       return newB;
     });
@@ -391,55 +451,12 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
     saveDailyRecord(newRecord);
     setSelectedBlockId(null);
   };
+  
+  // --- Rendering Helpers ---
 
-  // --- Copy/Paste Logic ---
-  const handleCopy = (content: string, status: ExecutionStatus | undefined, type: 'plan' | 'do', e: React.MouseEvent) => {
-      e.stopPropagation();
-      setClipboard({ content, status, type });
-  };
-  const handlePaste = (blockId: string, type: 'plan' | 'do', e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!clipboard) return;
-      const newBlocks = record.timeBlocks.map(b => {
-          if (b.id !== blockId) return b;
-          const newB = { ...b };
-          if (type === 'plan') newB.plan.content = clipboard.content;
-          else if (type === 'do') {
-              newB.do.actualContent = clipboard.content;
-              if (clipboard.status) newB.do.status = clipboard.status;
-          }
-          return newB;
-      });
-      const newRecord = { ...record, timeBlocks: newBlocks };
-      onUpdateRecord(newRecord);
-      saveDailyRecord(newRecord);
-  };
-
-  // Styles Helpers
-  const getStatusColor = (status: ExecutionStatus) => {
-    switch(status) {
-      case 'completed': return 'bg-green-100 border-green-300 text-green-800';
-      case 'partial': return 'bg-orange-100 border-orange-300 text-orange-800';
-      case 'changed': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
-      case 'skipped': return 'bg-red-50 border-red-200 text-red-400 decoration-line-through';
-      default: return 'bg-white border-transparent';
-    }
-  };
-  const getEfficiencyColor = (eff: EfficiencyRating) => {
-     if (eff === 'high') return 'bg-green-500';
-     if (eff === 'normal') return 'bg-blue-400';
-     if (eff === 'low') return 'bg-red-400';
-     return 'bg-slate-200';
-  };
-  const getEditTitle = (type: string) => {
-      switch(type) {
-          case 'plan': return '计划 (Plan)';
-          case 'do': return '执行 (Do)';
-          case 'check': return '检查 (Check)';
-          default: return type;
-      }
-  };
-
+  // Calculate spans for rendering grid
+  // We use the stored `span` property. 0 means don't render. >0 means render.
+  
   return (
     <div className="space-y-6 pb-20 relative">
       {/* Principal Tasks Banner */}
@@ -451,23 +468,14 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
         <div className="relative z-10 flex justify-between items-start mb-3">
              <h3 className="text-brand-100 text-sm font-semibold uppercase tracking-wider">今日主要任务 (Core Tasks)</h3>
              <div className="flex gap-2">
+                 <button onClick={handleOpenTemplates} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white flex items-center gap-1" title="模板">
+                    <LayoutTemplate className="w-4 h-4"/> 模板
+                 </button>
                  <button onClick={handleExport} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white" title="导出 CSV"><FileDown className="w-4 h-4"/></button>
                  {!isEditingPrincipal ? (
-                     <button 
-                        onClick={() => setIsEditingPrincipal(true)}
-                        className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white"
-                        title="编辑主要任务"
-                     >
-                        <Edit3 className="w-4 h-4" />
-                     </button>
+                     <button onClick={() => setIsEditingPrincipal(true)} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white"><Edit3 className="w-4 h-4" /></button>
                  ) : (
-                    <button 
-                        onClick={savePrincipalTasks}
-                        className="p-1.5 bg-green-500/80 hover:bg-green-500 rounded-lg transition-colors text-white shadow-sm"
-                        title="保存"
-                     >
-                        <Save className="w-4 h-4" />
-                     </button>
+                    <button onClick={savePrincipalTasks} className="p-1.5 bg-green-500/80 hover:bg-green-500 rounded-lg transition-colors text-white shadow-sm"><Save className="w-4 h-4" /></button>
                  )}
              </div>
         </div>
@@ -483,29 +491,18 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
              <>
                 <div className="bg-white/10 backdrop-blur-sm border border-white/30 p-2 rounded-lg flex items-center gap-3">
                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold">1</div>
-                   <input 
-                      value={tempP1}
-                      onChange={(e) => setTempP1(e.target.value)}
-                      placeholder="任务 1..."
-                      className="bg-transparent border-none outline-none text-white placeholder-white/40 w-full font-medium text-lg focus:ring-0"
-                      autoFocus
-                   />
+                   <input value={tempP1} onChange={(e) => setTempP1(e.target.value)} placeholder="任务 1..." className="bg-transparent border-none outline-none text-white placeholder-white/40 w-full font-medium text-lg focus:ring-0" autoFocus />
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm border border-white/30 p-2 rounded-lg flex items-center gap-3">
                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold">2</div>
-                   <input 
-                      value={tempP2}
-                      onChange={(e) => setTempP2(e.target.value)}
-                      placeholder="任务 2..."
-                      className="bg-transparent border-none outline-none text-white placeholder-white/40 w-full font-medium text-lg focus:ring-0"
-                   />
+                   <input value={tempP2} onChange={(e) => setTempP2(e.target.value)} placeholder="任务 2..." className="bg-transparent border-none outline-none text-white placeholder-white/40 w-full font-medium text-lg focus:ring-0" />
                 </div>
              </>
           )}
         </div>
       </div>
 
-      {/* Tri-Track Grid - Re-engineered for True RowSpan */}
+      {/* Tri-Track Grid */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
         {/* Header */}
         <div className="grid grid-cols-12 bg-slate-50 border-b border-slate-200 text-sm font-bold text-slate-600 sticky top-0 z-20 shadow-sm">
@@ -525,77 +522,123 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
           <div className="col-span-2 md:col-span-1 p-3 text-center">检查</div>
         </div>
 
-        {/* Flat Grid Content */}
+        {/* Flat Grid Content with Row Spans */}
         <div className="grid grid-cols-12 auto-rows-fr">
           {visibleBlocks.map((block, idx) => {
              const isLocked = block.plan.isBioLocked;
-             const spans = blockSpans[idx];
+             
+             // Defaults (safe navigation)
+             const planSpan = block.plan.span ?? 1;
+             const doSpan = block.do.span ?? 1;
+             // Check spans same as Do
+             const checkSpan = doSpan; 
+
+             // Handle Rendering Logic
+             const renderPlan = planSpan > 0;
+             const renderDo = doSpan > 0;
+             const renderCheck = checkSpan > 0; // Sync Check with Do
+
+             // Determine next blocks for Handles
+             // For Plan Handle: If I am span 1, I can merge with next IF next exists & next span=1 & next is not part of another span (implicit by next.span=1)
+             const canMergePlanDown = planSpan > 0 && (idx + planSpan) < visibleBlocks.length;
+             const canSplitPlan = planSpan > 1;
+
+             const canMergeDoDown = doSpan > 0 && (idx + doSpan) < visibleBlocks.length;
+             const canSplitDo = doSpan > 1;
 
              return (
               <React.Fragment key={block.id}>
-                {/* Time Column (Always Render) */}
+                {/* Time Column (Always Render, 1x height) */}
                 <div className={`col-span-2 md:col-span-1 py-3 text-xs md:text-sm text-slate-400 text-center font-mono border-r border-b border-slate-200 flex flex-col items-center justify-center relative group/time hover:bg-slate-50`}>
                    {block.time}
                    {!isLocked && (
-                       <button 
-                         onClick={() => { setSplitTargetId(block.id); setSplitTime(minutesToTime(timeToMinutes(block.time) + 15)); }}
-                         className="absolute hidden group-hover/time:flex bg-white shadow-sm border border-slate-200 rounded p-1 text-slate-400 hover:text-brand-600 z-10"
-                         title="拆分时间段"
-                       >
-                           <Scissors className="w-3 h-3" />
-                       </button>
+                       <div className="absolute hidden group-hover/time:flex flex-col gap-1 z-10 bg-white shadow rounded border border-slate-100 p-0.5 top-0 right-0">
+                           <button 
+                                onClick={() => { setSplitTargetId(block.id); setSplitTime(minutesToTime(timeToMinutes(block.time) + 15)); }}
+                                className="p-1 text-slate-400 hover:text-brand-600"
+                                title="拆分时间段"
+                            >
+                                <Scissors className="w-3 h-3" />
+                            </button>
+                            <button 
+                                onClick={() => handleDeleteTime(block.id)}
+                                className="p-1 text-slate-400 hover:text-red-600"
+                                title="删除时间段"
+                            >
+                                <Trash2 className="w-3 h-3" />
+                            </button>
+                       </div>
                    )}
                 </div>
 
                 {/* Plan Column */}
-                {spans.renderPlan && (
+                {renderPlan && (
                     <div 
-                        style={{ gridRow: `span ${spans.plan}` }}
-                        onClick={() => openEditor(block, 'plan')} 
-                        className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-b border-slate-200 text-sm cursor-pointer relative group/cell whitespace-pre-wrap ${isLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed italic' : 'hover:bg-blue-50/50'} flex flex-col justify-center`}
+                        style={{ gridRow: `span ${planSpan}` }}
+                        className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-b border-slate-200 text-sm relative group/cell flex flex-col justify-center ${isLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed italic' : 'hover:bg-blue-50/50'}`}
                     >
-                        <div>
-                        {block.plan.startTime && block.plan.startTime !== block.time && !block.plan.content.includes('[') && (
-                            <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded mr-1 font-mono">{block.plan.startTime}~</span>
-                        )}
-                        {block.plan.content}
+                        <div className="flex-1 cursor-pointer whitespace-pre-wrap" onClick={() => openEditor(block, 'plan')}>
+                            {block.plan.startTime && block.plan.startTime !== block.time && !block.plan.content.includes('[') && (
+                                <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded mr-1 font-mono">{block.plan.startTime}~</span>
+                            )}
+                            {block.plan.content}
                         </div>
-
                         {isLocked && <span className="absolute right-2 top-3 text-xs text-slate-300">BIO</span>}
+                        
+                        {/* Copy/Paste Controls */}
                         {!isLocked && (
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover/cell:flex gap-1 bg-white/80 rounded z-10">
+                            <div className="absolute right-2 top-2 hidden group-hover/cell:flex gap-1 bg-white/80 rounded z-10">
                                 {block.plan.content && <button onClick={(e) => handleCopy(block.plan.content, undefined, 'plan', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><Copy className="w-3 h-3"/></button>}
                                 {clipboard && clipboard.type === 'plan' && <button onClick={(e) => handlePaste(block.id, 'plan', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><ClipboardPaste className="w-3 h-3"/></button>}
                             </div>
+                        )}
+
+                        {/* Merge/Split Handle */}
+                        {!isLocked && (
+                             <div className="absolute bottom-0 left-0 w-full h-1 flex justify-center z-20 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                                {canSplitPlan ? (
+                                    <button onClick={() => handleMergeAction(block.id, 'plan', 'split')} className="bg-white border border-slate-300 text-red-500 rounded-full p-0.5 shadow-sm hover:bg-red-50 -mb-2.5" title="拆分单元格"><Unlink className="w-3 h-3"/></button>
+                                ) : canMergePlanDown ? (
+                                    <button onClick={() => handleMergeAction(block.id, 'plan', 'merge')} className="bg-white border border-slate-300 text-brand-500 rounded-full p-0.5 shadow-sm hover:bg-brand-50 -mb-2.5" title="合并下一行"><Link className="w-3 h-3"/></button>
+                                ) : null}
+                             </div>
                         )}
                     </div>
                 )}
 
                 {/* Do Column */}
-                {spans.renderDo && (
+                {renderDo && (
                     <div 
-                        style={{ gridRow: `span ${spans.do}` }}
-                        onClick={() => openEditor(block, 'do')} 
-                        className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-b border-slate-200 text-sm cursor-pointer border-l-4 group/cell whitespace-pre-wrap ${getStatusColor(block.do.status).replace('bg-', 'hover:brightness-95 ')} flex flex-col justify-center`}
+                        style={{ gridRow: `span ${doSpan}` }}
+                        className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-b border-slate-200 text-sm relative group/cell border-l-4 flex flex-col justify-center ${getStatusColor(block.do.status).replace('bg-', 'hover:brightness-95 ')}`}
                     >
-                         <div className={`h-full w-full rounded px-2 py-1 flex items-center relative ${getStatusColor(block.do.status)} min-h-[2rem]`}>
+                         <div className={`h-full w-full rounded px-2 py-1 flex items-center relative ${getStatusColor(block.do.status)} min-h-[2rem] cursor-pointer whitespace-pre-wrap`} onClick={() => openEditor(block, 'do')}>
                             {block.do.startTime && block.do.startTime !== block.time && !block.do.actualContent.includes('[') && (
                                 <span className="text-[10px] bg-white/50 text-slate-700 px-1 rounded mr-1 font-mono">{block.do.startTime}~</span>
                             )}
                             {block.do.actualContent || (block.do.status === 'none' ? <span className="opacity-0 group-hover:opacity-100 text-slate-300">点击记录</span> : '')}
-                            
-                            <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover/cell:flex gap-1 bg-white/80 rounded z-10">
-                                {block.do.actualContent && <button onClick={(e) => handleCopy(block.do.actualContent, block.do.status, 'do', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><Copy className="w-3 h-3"/></button>}
-                                {clipboard && clipboard.type === 'do' && <button onClick={(e) => handlePaste(block.id, 'do', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><ClipboardPaste className="w-3 h-3"/></button>}
-                            </div>
+                        </div>
+
+                         <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover/cell:flex gap-1 bg-white/80 rounded z-10">
+                            {block.do.actualContent && <button onClick={(e) => handleCopy(block.do.actualContent, block.do.status, 'do', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><Copy className="w-3 h-3"/></button>}
+                            {clipboard && clipboard.type === 'do' && <button onClick={(e) => handlePaste(block.id, 'do', e)} className="p-1.5 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-brand-600"><ClipboardPaste className="w-3 h-3"/></button>}
+                        </div>
+
+                         {/* Merge/Split Handle */}
+                        <div className="absolute bottom-0 left-0 w-full h-1 flex justify-center z-20 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                            {canSplitDo ? (
+                                <button onClick={() => handleMergeAction(block.id, 'do', 'split')} className="bg-white border border-slate-300 text-red-500 rounded-full p-0.5 shadow-sm hover:bg-red-50 -mb-2.5" title="拆分单元格"><Unlink className="w-3 h-3"/></button>
+                            ) : canMergeDoDown ? (
+                                <button onClick={() => handleMergeAction(block.id, 'do', 'merge')} className="bg-white border border-slate-300 text-brand-500 rounded-full p-0.5 shadow-sm hover:bg-brand-50 -mb-2.5" title="合并下一行"><Link className="w-3 h-3"/></button>
+                            ) : null}
                         </div>
                     </div>
                 )}
 
                 {/* Check Column (Synced with Do) */}
-                {spans.renderCheck && (
+                {renderCheck && (
                      <div 
-                        style={{ gridRow: `span ${spans.check}` }}
+                        style={{ gridRow: `span ${checkSpan}` }}
                         onClick={() => openEditor(block, 'check')} 
                         className="col-span-2 md:col-span-1 p-2 border-r border-b border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 group/check"
                         title={block.check.comment ? `检查: ${block.check.comment} (效率: ${EFFICIENCY_LABELS[block.check.efficiency || 'null']})` : '点击填写检查'}
@@ -651,7 +694,52 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
           </div>
       )}
 
-      {/* Editor Modal */}
+      {/* Template Modal */}
+      {showTemplateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[1px]" onClick={() => setShowTemplateModal(false)}>
+              <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+                  <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2"><LayoutTemplate className="w-5 h-5"/> 日程模板管理</h3>
+                  
+                  {/* Save Current */}
+                  <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">将当前日程保存为模板</label>
+                      <div className="flex gap-2">
+                          <input 
+                              value={newTemplateName}
+                              onChange={(e) => setNewTemplateName(e.target.value)}
+                              placeholder="输入模板名称 (如: 标准工作日)"
+                              className="flex-1 px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-brand-500"
+                          />
+                          <button onClick={saveCurrentAsTemplate} disabled={!newTemplateName} className="px-3 py-2 bg-brand-600 text-white rounded text-sm hover:bg-brand-700 disabled:opacity-50 flex items-center gap-1">
+                              <Download className="w-4 h-4"/> 保存
+                          </button>
+                      </div>
+                  </div>
+
+                  {/* Load Template */}
+                  <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">加载模板</label>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {templates.length === 0 ? <div className="text-center text-slate-400 text-sm py-2">暂无模板</div> : 
+                            templates.map(tpl => (
+                                <div key={tpl.id} className="flex justify-between items-center p-3 bg-white border border-slate-200 rounded hover:border-brand-300">
+                                    <span className="font-medium text-slate-700">{tpl.name}</span>
+                                    <button onClick={() => loadTemplate(tpl)} className="px-3 py-1 bg-white border border-slate-300 rounded text-xs hover:bg-brand-50 text-slate-600 flex items-center gap-1">
+                                        <Upload className="w-3 h-3"/> 应用
+                                    </button>
+                                </div>
+                            ))
+                          }
+                      </div>
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                      <button onClick={() => setShowTemplateModal(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">关闭</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Editor Modal (Keep existing logic) */}
       {selectedBlockId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[1px]" onClick={() => setSelectedBlockId(null)}>
            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
@@ -664,52 +752,26 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
               <div className="space-y-4">
                   {selectedBlockId === 'NEW' && (
                       <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
-                          <button 
-                            onClick={() => setEditType('plan')}
-                            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${editType === 'plan' ? 'bg-white shadow-sm text-brand-600' : 'text-slate-500'}`}
-                          >
-                              计划 (Plan)
-                          </button>
-                          <button 
-                            onClick={() => { setEditType('do'); setEditStatus('completed'); }}
-                            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${editType === 'do' ? 'bg-white shadow-sm text-brand-600' : 'text-slate-500'}`}
-                          >
-                              执行 (Do)
-                          </button>
+                          <button onClick={() => setEditType('plan')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${editType === 'plan' ? 'bg-white shadow-sm text-brand-600' : 'text-slate-500'}`}>计划 (Plan)</button>
+                          <button onClick={() => { setEditType('do'); setEditStatus('completed'); }} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${editType === 'do' ? 'bg-white shadow-sm text-brand-600' : 'text-slate-500'}`}>执行 (Do)</button>
                       </div>
                   )}
 
                   <div className="flex gap-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
                       <div className="flex-1">
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">开始时间</label>
-                          <input 
-                              type="time"
-                              value={editStartTime}
-                              onChange={(e) => setEditStartTime(e.target.value)}
-                              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-brand-500 outline-none"
-                          />
+                          <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-brand-500 outline-none"/>
                       </div>
                       <div className="flex items-end pb-1 text-slate-300">→</div>
                       <div className="flex-1">
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">结束时间</label>
-                           <input 
-                              type="time"
-                              value={editEndTime}
-                              onChange={(e) => setEditEndTime(e.target.value)}
-                              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-brand-500 outline-none"
-                          />
+                           <input type="time" value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-brand-500 outline-none"/>
                       </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1">内容</label>
-                    <textarea 
-                      autoFocus
-                      className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-brand-500 outline-none resize-none h-24" 
-                      value={editContent} 
-                      onChange={e => setEditContent(e.target.value)} 
-                      placeholder="要做什么..."
-                    />
+                    <textarea autoFocus className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-brand-500 outline-none resize-none h-24" value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="要做什么..."/>
                   </div>
 
                   {editType === 'do' && selectedBlockId !== 'NEW' && (
@@ -717,13 +779,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                         <label className="block text-xs font-semibold text-slate-500 mb-2">执行状态</label>
                         <div className="flex flex-wrap gap-2">
                             {(['completed', 'partial', 'changed', 'skipped'] as const).map(s => (
-                                <button 
-                                  key={s}
-                                  onClick={() => setEditStatus(s)}
-                                  className={`px-3 py-1 rounded-full text-xs font-medium border ${editStatus === s ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400'}`}
-                                >
-                                    {STATUS_LABELS[s]}
-                                </button>
+                                <button key={s} onClick={() => setEditStatus(s)} className={`px-3 py-1 rounded-full text-xs font-medium border ${editStatus === s ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-400'}`}>{STATUS_LABELS[s]}</button>
                             ))}
                         </div>
                      </div>
@@ -735,10 +791,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                          <div className="flex gap-4">
                             {(['high', 'normal', 'low'] as const).map(e => (
                                 <div key={e} className="flex flex-col items-center gap-1">
-                                    <button
-                                    onClick={() => setEditEfficiency(e)}
-                                    className={`w-8 h-8 rounded-full ring-2 ring-offset-2 ${editEfficiency === e ? 'ring-brand-500' : 'ring-transparent'} ${getEfficiencyColor(e)}`}
-                                    />
+                                    <button onClick={() => setEditEfficiency(e)} className={`w-8 h-8 rounded-full ring-2 ring-offset-2 ${editEfficiency === e ? 'ring-brand-500' : 'ring-transparent'} ${getEfficiencyColor(e)}`}/>
                                     <span className="text-xs text-slate-500">{EFFICIENCY_LABELS[e]}</span>
                                 </div>
                             ))}

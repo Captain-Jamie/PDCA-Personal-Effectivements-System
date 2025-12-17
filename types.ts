@@ -31,12 +31,21 @@ export interface WeeklyPlan {
 export type EfficiencyRating = 'high' | 'normal' | 'low' | null;
 export type ExecutionStatus = 'completed' | 'partial' | 'changed' | 'skipped' | 'none';
 
+// New: Day Template
+export interface DayTemplate {
+    id: string;
+    name: string;
+    primaryTasks: [string, string];
+    timeBlocks: TimeBlock[];
+}
+
 export interface PlanTrack {
   content: string;
   startTime?: string; // Optional: Specific start time (e.g., "10:15")
   endTime?: string;   // Optional: Specific end time
   isPrimary: boolean;
   isBioLocked: boolean; // Sleep or Meals
+  span?: number; // RowSpan for merging. 0 means hidden (covered), 1 is normal, >1 is merged head
 }
 
 export interface DoTrack {
@@ -44,6 +53,7 @@ export interface DoTrack {
   actualContent: string;
   startTime?: string;
   endTime?: string;
+  span?: number; // RowSpan
 }
 
 export interface CheckTrack {

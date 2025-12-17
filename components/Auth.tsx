@@ -46,7 +46,13 @@ export const Auth: React.FC<AuthProps> = ({ onClose }) => {
           email,
           password,
         });
-        if (error) throw error;
+        if (error) {
+            // Check for duplicate user error
+            if (error.message.includes("User already registered") || error.status === 400) {
+                throw new Error("该邮箱已被注册，请直接登录。");
+            }
+            throw error;
+        }
         setMsg('注册成功！');
       } else {
         const { error } = await (supabase.auth as any).signInWithPassword({

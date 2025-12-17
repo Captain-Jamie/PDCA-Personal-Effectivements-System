@@ -1,4 +1,4 @@
-import { DailyRecord, TaskItem, WeeklyPlan, TimeBlock, BioClockConfig } from '../types';
+import { DailyRecord, TaskItem, WeeklyPlan, TimeBlock, BioClockConfig, DayTemplate } from '../types';
 import { BIO_CLOCK_CONFIG as DEFAULT_BIO_CLOCK_CONFIG, TIME_SLOTS, INITIAL_TASK_POOL } from '../constants';
 import { supabase } from '../src/supabaseClient';
 
@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   TASK_POOL: 'pdca_task_pool',
   WEEKLY_PLANS: 'pdca_weekly_plans',
   BIO_CLOCK: 'pdca_bio_clock',
+  TEMPLATES: 'pdca_day_templates',
 };
 
 // --- Helper Functions ---
@@ -118,8 +119,8 @@ const createEmptyDay = async (date: string): Promise<DailyRecord> => {
     return {
       id: `${date}-${time}`,
       time,
-      plan: { content: content, isPrimary: false, isBioLocked: locked },
-      do: { status: 'none', actualContent: '' },
+      plan: { content: content, isPrimary: false, isBioLocked: locked, span: 1 },
+      do: { status: 'none', actualContent: '', span: 1 },
       check: { efficiency: null, tags: [], comment: '' },
     };
   });
@@ -143,33 +144,26 @@ const createEmptyDay = async (date: string): Promise<DailyRecord> => {
 };
 
 const ensureTimeBlocksCoverage = async (record: DailyRecord): Promise<DailyRecord> => {
-    // If the record was created with old 7-23 slots, we might want to fill in the 24h gaps.
-    // However, since TIME_SLOTS is now 24h, we can check if we are missing any standard slots.
-    const existingTimes = new Set(record.timeBlocks.map(b => b.time));
-    const missingSlots = TIME_SLOTS.filter(t => !existingTimes.has(t));
-
-    if (missingSlots.length === 0) return record;
-
-    const config = await getBioClockConfig();
-    const newBlocks: TimeBlock[] = missingSlots.map((time) => {
-        const { locked, content } = calculateBioLocks(time, config);
-        return {
-            id: `${record.date}-${time}`,
-            time,
-            plan: { content: content, isPrimary: false, isBioLocked: locked },
-            do: { status: 'none', actualContent: '' },
-            check: { efficiency: null, tags: [], comment: '' },
-        };
+    // Basic check: if the record has NO blocks (which shouldn't happen) or very few, we might need to fix.
+    // But since the user wants manual deletion, we shouldn't force-add ALL slots back if they deleted them.
+    // We only force-add if the record is completely empty or malformed from old version.
+    // However, to respect "24h coverage" from previous requirement BUT allow manual delete,
+    // we should only ensure coverage if it looks like an old legacy record (e.g. 7-23).
+    // For now, let's assume if it has blocks, we trust the user's deletion choice.
+    
+    // Compatibility: Ensure `span` property exists
+    let modified = false;
+    const newBlocks = record.timeBlocks.map(b => {
+        let newB = { ...b };
+        if (typeof newB.plan.span === 'undefined') { newB.plan.span = 1; modified = true; }
+        if (typeof newB.do.span === 'undefined') { newB.do.span = 1; modified = true; }
+        return newB;
     });
 
-    // Merge and Sort
-    const mergedBlocks = [...record.timeBlocks, ...newBlocks].sort((a, b) => {
-        const [h1, m1] = a.time.split(':').map(Number);
-        const [h2, m2] = b.time.split(':').map(Number);
-        return (h1 * 60 + m1) - (h2 * 60 + m2);
-    });
-
-    return { ...record, timeBlocks: mergedBlocks };
+    if (modified) {
+        return { ...record, timeBlocks: newBlocks };
+    }
+    return record;
 };
 
 export const getDailyRecord = async (date: string): Promise<DailyRecord> => {
@@ -195,11 +189,8 @@ export const getDailyRecord = async (date: string): Promise<DailyRecord> => {
   }
 
   if (record) {
-      // Ensure 24h coverage for existing records
       const updatedRecord = await ensureTimeBlocksCoverage(record);
-      if (updatedRecord.timeBlocks.length !== record.timeBlocks.length) {
-          await saveDailyRecord(updatedRecord); // Sync update
-      }
+      // We don't auto-save here unless necessary to prevent overwrite loop
       return updatedRecord;
   }
   
@@ -254,7 +245,7 @@ export const getDailyRecordsRange = async (startDate: string, endDate: string): 
 };
 
 export const saveDailyRecord = async (record: DailyRecord) => {
-  // Always ensure blocks are sorted by time before saving, in case splitting added out-of-order blocks
+  // Always ensure blocks are sorted by time before saving
   record.timeBlocks.sort((a, b) => {
       const [h1, m1] = a.time.split(':').map(Number);
       const [h2, m2] = b.time.split(':').map(Number);
@@ -373,4 +364,47 @@ export const saveWeeklyPlan = async (plan: WeeklyPlan) => {
   const plans: Record<string, WeeklyPlan> = stored ? JSON.parse(stored) : {};
   plans[plan.weekId] = plan;
   localStorage.setItem(STORAGE_KEYS.WEEKLY_PLANS, JSON.stringify(plans));
+};
+
+// 5. Day Templates
+export const getDayTemplates = async (): Promise<DayTemplate[]> => {
+    if (supabase) {
+        const { data: { user } } = await (supabase.auth as any).getUser();
+        if (user) {
+            const { data } = await supabase
+                .from('user_settings')
+                .select('data')
+                .eq('key', 'day_templates')
+                .single();
+            if (data) return data.data as DayTemplate[];
+            return [];
+        }
+    }
+    const stored = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
+    return stored ? JSON.parse(stored) : [];
+};
+
+export const saveDayTemplate = async (template: DayTemplate) => {
+    const templates = await getDayTemplates();
+    // Add or Update
+    const idx = templates.findIndex(t => t.id === template.id);
+    let newTemplates;
+    if (idx >= 0) {
+        newTemplates = [...templates];
+        newTemplates[idx] = template;
+    } else {
+        newTemplates = [...templates, template];
+    }
+
+    if (supabase) {
+        const { data: { user } } = await (supabase.auth as any).getUser();
+        if (user) {
+            await supabase.from('user_settings').upsert(
+                { user_id: user.id, key: 'day_templates', data: newTemplates },
+                { onConflict: 'user_id, key' }
+            );
+            return;
+        }
+    }
+    localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(newTemplates));
 };

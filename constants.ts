@@ -12,20 +12,15 @@ export const BIO_CLOCK_CONFIG: BioClockConfig = {
   enableSleepFold: true // Default enabled
 };
 
-// Generate time slots from 00:00 to 23:30 in 30 min intervals (24 Hours)
+// Generate time slots from 00:00 to 23:00 in 60 min intervals (1 Hour)
 export const TIME_SLOTS: string[] = [];
 let hour = 0;
-let min = 0;
-// Loop until 23:30
+// Loop until 23:00 (Last slot starts at 23:00)
 while (hour < 24) {
   const hStr = hour.toString().padStart(2, '0');
-  const mStr = min.toString().padStart(2, '0');
+  const mStr = "00";
   TIME_SLOTS.push(`${hStr}:${mStr}`);
-  min += 30;
-  if (min === 60) {
-    min = 0;
-    hour++;
-  }
+  hour++;
 }
 
 export const INITIAL_TASK_POOL = [
