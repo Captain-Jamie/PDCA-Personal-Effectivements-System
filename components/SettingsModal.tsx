@@ -3,7 +3,7 @@ import { BioClockConfig } from '../types';
 import { getBioClockConfig, saveBioClockConfig } from '../services/storage';
 import { REGISTRATION_INVITE_CODE } from '../constants';
 import { supabase, disconnectSupabaseConnection } from '../src/supabaseClient';
-import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { X, Save, Clock, Trash2, Plus, User, Settings, Shield, Moon, Eye, EyeOff, RefreshCw, KeyRound, Check } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -21,6 +21,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
     enableSleepFold: true
   });
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  
+  // Password Update State
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passMsg, setPassMsg] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -30,6 +35,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
               if(user) setUserEmail(user.email);
           });
       }
+      setPassMsg('');
+      setNewPassword('');
+      setConfirmPassword('');
     }
   }, [isOpen]);
 
@@ -62,6 +70,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
           await onResetToday();
           alert("今日数据已重置。");
           onClose();
+      }
+  };
+
+  const handleUpdatePassword = async () => {
+      if (!newPassword || !confirmPassword) return;
+      if (newPassword !== confirmPassword) {
+          setPassMsg("❌ 两次密码输入不一致");
+          return;
+      }
+      if (!supabase) return;
+
+      try {
+          const { error } = await supabase.auth.updateUser({ password: newPassword });
+          if (error) throw error;
+          setPassMsg("✅ 密码已更新");
+          setNewPassword('');
+          setConfirmPassword('');
+      } catch (e: any) {
+          setPassMsg(`❌ ${e.message}`);
       }
   };
 
@@ -124,6 +151,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onResetT
                                 </div>
                             </div>
                         </div>
+
+                        {/* Password Management */}
+                        {userEmail && (
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-4">密码管理</h3>
+                                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">新密码</label>
+                                            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none" placeholder="输入新密码" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">确认新密码</label>
+                                            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none" placeholder="再次输入" />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium">{passMsg}</span>
+                                        <button onClick={handleUpdatePassword} disabled={!newPassword || !confirmPassword} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                            <KeyRound className="w-4 h-4" /> 更新密码
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-slate-400">如果您之前使用验证码登录，可在此处设置密码以便下次使用密码登录。</p>
+                                </div>
+                            </div>
+                        )}
 
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 mb-4">危险区域</h3>
