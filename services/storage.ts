@@ -108,7 +108,7 @@ const calculateBioLocks = (time: string, config: BioClockConfig) => {
   if (sleepStartVal > sleepEndVal) {
     // Sleep crosses midnight (e.g. 23:00 to 07:00)
     // Locked if >= 23:00 OR < 07:00. 
-    // BUT 07:00 itself is the wake up time, so it should NOT be locked.
+    // 07:00 itself is unlocked by this logic, which is correct (standard slot available).
     if (timeVal >= sleepStartVal || timeVal < sleepEndVal) return { locked: true, content: 'Sleep' };
   } else {
     // Standard (e.g. 01:00 to 06:00)
@@ -119,70 +119,95 @@ const calculateBioLocks = (time: string, config: BioClockConfig) => {
 
 /**
  * Ensures the daily record reflects the current BioClock configuration.
- * This includes:
- * 1. Making sure the Wake-up time (end of sleep window) exists as a slot.
- * 2. Marking the Wake-up slot with '起床'.
- * 3. Updating lock status for all slots based on current config (Immediate Effect).
+ * logic:
+ * 1. Creates a distinct WAKEUP block.
+ * 2. Cleans up standard blocks.
+ * 3. Updates all Bio Locks.
+ * 4. Sorts so WAKEUP appears first.
  */
 const applyBioClockToRecord = (record: DailyRecord, config: BioClockConfig): DailyRecord => {
     const wakeUpTime = config.sleepWindow[1];
     let blocks = [...record.timeBlocks];
 
-    // 1. Ensure Wake-up Block exists and is configured correctly
-    const wakeUpBlockIndex = blocks.findIndex(b => b.time === wakeUpTime);
+    // 1. Manage WAKEUP Block (Distinct ID)
+    const wakeUpBlockId = `${record.date}-${wakeUpTime}-WAKEUP`;
+    const existingWakeUp = blocks.find(b => b.id === wakeUpBlockId);
 
-    if (wakeUpBlockIndex === -1) {
-        // Create new Wake-up block if it doesn't exist (e.g. 07:30 when grid is hourly)
-        const newBlock: TimeBlock = {
-            id: `${record.date}-${wakeUpTime}`,
+    if (existingWakeUp) {
+        // Ensure it stays locked and has correct time/content
+        blocks = blocks.map(b => b.id === wakeUpBlockId ? {
+             ...b,
+             time: wakeUpTime,
+             plan: { ...b.plan, content: '起床', isBioLocked: true }
+        } : b);
+    } else {
+        // Create new distinct block
+        blocks.push({
+            id: wakeUpBlockId,
             time: wakeUpTime,
-            plan: { content: '起床', isPrimary: false, isBioLocked: false, span: 1 },
+            plan: { content: '起床', isPrimary: false, isBioLocked: true, span: 1 },
             do: { status: 'none', actualContent: '', span: 1 },
             check: { efficiency: null, tags: [], comment: '' }
-        };
-        blocks.push(newBlock);
-    } else {
-        // If exists, ensure it's not locked and implies wake up if empty
-        const b = blocks[wakeUpBlockIndex];
-        // Only auto-fill '起床' if it doesn't already have it
-        if (!b.plan.content.includes('起床')) {
-             b.plan.content = b.plan.content ? `起床 ${b.plan.content}` : '起床';
-        }
-        b.plan.isBioLocked = false;
-        blocks[wakeUpBlockIndex] = b;
+        });
     }
 
-    // 2. Re-calculate Bio Locks for ALL blocks based on NEW config
+    // 2. Cleanup Standard Blocks (Remove '起床' artifacts from standard slots)
     blocks = blocks.map(b => {
-         // Skip the wake up block for locking logic (it must be active)
-         if (b.time === wakeUpTime) return b;
-
-         const { locked, content } = calculateBioLocks(b.time, config);
-         
-         // If status changed to locked, update content to system content.
-         // If status changed to unlocked (e.g. user changed sleep 07:00 to 06:00, so 06:00 is now active), 
-         // remove system content if it was 'Sleep'.
-         let newContent = b.plan.content;
-         if (locked) {
-             newContent = content; // Overwrite with 'Sleep' or 'Lunch'
-         } else if (b.plan.isBioLocked && !locked && (b.plan.content === 'Sleep' || config.meals.some(m => m.name === b.plan.content))) {
-             newContent = ''; // Clear system content if unlocking
-         }
-
-         return {
-             ...b,
-             plan: {
-                 ...b.plan,
-                 isBioLocked: locked,
-                 content: newContent
+        if (b.id !== wakeUpBlockId && b.time === wakeUpTime) {
+             // If plan content is exactly '起床' (legacy auto-fill), clear it
+             if (b.plan.content === '起床') {
+                  return { ...b, plan: { ...b.plan, content: '', isBioLocked: false } };
              }
-         };
+             // If it starts with '起床 ' (legacy merge), remove prefix
+             if (b.plan.content.startsWith('起床 ')) {
+                  return { ...b, plan: { ...b.plan, content: b.plan.content.replace(/^起床\s*/, '') } };
+             }
+        }
+        return b;
     });
 
-    // 3. Sort chronologically
-    blocks.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+    // 3. Remove stale WAKEUP blocks (if user changed bio clock time, e.g. from 07:00 to 06:00)
+    blocks = blocks.filter(b => {
+        if (b.id.endsWith('-WAKEUP') && b.time !== wakeUpTime) return false;
+        return true;
+    });
 
-    // 4. Ensure span property exists (Legacy support)
+    // 4. Update Locks for Standard Blocks
+    blocks = blocks.map(b => {
+        if (b.id.endsWith('-WAKEUP')) return b; // Skip special block logic
+        
+        const { locked, content } = calculateBioLocks(b.time, config);
+        
+        let newContent = b.plan.content;
+        if (locked) {
+            // Apply system content (Sleep/Meals)
+            newContent = content; 
+        } else if (b.plan.isBioLocked && !locked) {
+            // Unlocking: Clear system content if it matches known system strings
+            if (b.plan.content === 'Sleep' || config.meals.some(m => m.name === b.plan.content)) {
+                newContent = '';
+            }
+        }
+
+        return {
+            ...b,
+            plan: { ...b.plan, isBioLocked: locked, content: newContent }
+        };
+    });
+
+    // 5. Sort (Time asc, then WAKEUP block first)
+    blocks.sort((a, b) => {
+        const ta = timeToMinutes(a.time);
+        const tb = timeToMinutes(b.time);
+        if (ta !== tb) return ta - tb;
+        
+        // Same time: WAKEUP block comes first
+        if (a.id.endsWith('-WAKEUP')) return -1;
+        if (b.id.endsWith('-WAKEUP')) return 1;
+        return 0;
+    });
+
+    // 6. Span cleanup (Legacy safety)
     blocks = blocks.map(b => ({
         ...b,
         plan: { ...b.plan, span: b.plan.span ?? 1 },
@@ -209,7 +234,7 @@ export const createEmptyDay = async (date: string): Promise<DailyRecord> => {
     };
   });
 
-  // Apply Wake Up Logic immediately
+  // Apply Wake Up Logic immediately (Injects WAKEUP block)
   const rawRecord: DailyRecord = {
     date,
     primaryTasks: ['', ''],
@@ -217,7 +242,6 @@ export const createEmptyDay = async (date: string): Promise<DailyRecord> => {
     timeBlocks,
   };
   
-  // Use the synchronizer to inject wake up slot
   const recordWithWakeUp = applyBioClockToRecord(rawRecord, config);
 
   // Check Weekly Plan for presets
@@ -320,7 +344,14 @@ export const getDailyRecordsRange = async (startDate: string, endDate: string): 
 
 export const saveDailyRecord = async (record: DailyRecord) => {
   // Always ensure blocks are sorted by time before saving
-  record.timeBlocks.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+  record.timeBlocks.sort((a, b) => {
+      const ta = timeToMinutes(a.time);
+      const tb = timeToMinutes(b.time);
+      if (ta !== tb) return ta - tb;
+      if (a.id.endsWith('-WAKEUP')) return -1;
+      if (b.id.endsWith('-WAKEUP')) return 1;
+      return 0;
+  });
 
   if (supabase) {
     const { data: { user } } = await (supabase.auth as any).getUser();

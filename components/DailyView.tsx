@@ -365,8 +365,8 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
 
   // --- Editor Logic ---
   const openEditor = (block: TimeBlock | null, type: 'plan' | 'do' | 'check', defaultTime?: string) => {
-    // Bio Lock Check
-    if (block && block.plan.isBioLocked) return;
+    // Bio Lock Check: Only lock 'plan' type. Allow 'do' and 'check' for punch-in.
+    if (block && block.plan.isBioLocked && type === 'plan') return;
 
     setEditType(type);
     if (block) {
@@ -578,9 +578,9 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                 {renderPlan && (
                     <div 
                         style={{ gridRow: `span ${planSpan}` }}
-                        className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-b border-slate-200 text-sm relative group/cell flex flex-col justify-center ${isLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed italic' : 'hover:bg-blue-50/50'}`}
+                        className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-b border-slate-200 text-sm relative group/cell flex flex-col justify-center ${isLocked ? 'bg-slate-100 text-slate-400 italic' : 'hover:bg-blue-50/50'}`}
                     >
-                        <div className={`flex-1 cursor-pointer whitespace-pre-wrap ${isLocked ? 'pointer-events-none' : ''}`} onClick={() => openEditor(block, 'plan')}>
+                        <div className={`flex-1 whitespace-pre-wrap ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`} onClick={() => openEditor(block, 'plan')}>
                             {block.plan.startTime && block.plan.startTime !== block.time && !block.plan.content.includes('[') && (
                                 <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded mr-1 font-mono">{block.plan.startTime}~</span>
                             )}
@@ -614,16 +614,16 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                 {renderDo && (
                     <div 
                         style={{ gridRow: `span ${doSpan}` }}
-                        className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-b border-slate-200 text-sm relative group/cell border-l-4 flex flex-col justify-center ${isLocked ? 'bg-slate-50 cursor-not-allowed' : 'hover:bg-slate-50'}`}
+                        className={`col-span-4 md:col-span-5 p-2 md:p-3 border-r border-b border-slate-200 text-sm relative group/cell border-l-4 flex flex-col justify-center ${isLocked ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
                     >
                          <div 
-                             className={`h-full w-full rounded px-2 py-1 flex items-center relative ${getStatusColor(block.do.status)} min-h-[2rem] whitespace-pre-wrap ${isLocked ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}
+                             className={`h-full w-full rounded px-2 py-1 flex items-center relative ${getStatusColor(block.do.status)} min-h-[2rem] whitespace-pre-wrap cursor-pointer`}
                              onClick={() => openEditor(block, 'do')}
                          >
                             {block.do.startTime && block.do.startTime !== block.time && !block.do.actualContent.includes('[') && (
                                 <span className="text-[10px] bg-white/50 text-slate-700 px-1 rounded mr-1 font-mono">{block.do.startTime}~</span>
                             )}
-                            {block.do.actualContent || (block.do.status === 'none' && !isLocked ? <span className="opacity-0 group-hover:opacity-100 text-slate-300">点击记录</span> : '')}
+                            {block.do.actualContent || (block.do.status === 'none' ? <span className="opacity-0 group-hover:opacity-100 text-slate-300">点击记录</span> : '')}
                         </div>
 
                          <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover/cell:flex gap-1 bg-white/80 rounded z-10">
@@ -650,7 +650,7 @@ const DailyView: React.FC<DailyViewProps> = ({ record, onUpdateRecord, onOpenAct
                      <div 
                         style={{ gridRow: `span ${checkSpan}` }}
                         onClick={() => openEditor(block, 'check')} 
-                        className={`col-span-2 md:col-span-1 p-2 border-r border-b border-slate-200 flex flex-col items-center justify-center group/check ${isLocked ? 'bg-slate-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer hover:bg-slate-100'}`}
+                        className={`col-span-2 md:col-span-1 p-2 border-r border-b border-slate-200 flex flex-col items-center justify-center group/check ${isLocked ? 'bg-slate-50' : 'hover:bg-slate-100'} cursor-pointer`}
                         title={block.check.comment ? `检查: ${block.check.comment} (效率: ${EFFICIENCY_LABELS[block.check.efficiency || 'null']})` : '点击填写检查'}
                     >
                         <div className={`w-3 h-3 md:w-4 md:h-4 rounded-full ${getEfficiencyColor(block.check.efficiency)} ${isLocked ? 'opacity-30' : ''}`}></div>
