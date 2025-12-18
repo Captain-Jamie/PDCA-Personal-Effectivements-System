@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { WeeklyPlan, DailyRecord } from '../types';
 import { getWeeklyPlan, saveWeeklyPlan, getWeekId, getMondayOfWeek, getDailyRecord, getDailyRecordsRange, saveDailyRecord, exportToCSV } from '../services/storage';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { Calendar, Target, TrendingUp, ChevronLeft, ChevronRight, Edit3, Save, X, Loader2, BookOpen, AlertCircle, FileDown } from 'lucide-react';
+import { Calendar, Target, TrendingUp, ChevronLeft, ChevronRight, Edit3, Save, X, Loader2, BookOpen, AlertCircle, FileDown, CheckCircle2 } from 'lucide-react';
 
 interface WeeklyViewProps {
   currentDate: Date;
@@ -27,6 +27,8 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
 
   // Detail Modal State
   const [selectedDayDetail, setSelectedDayDetail] = useState<DailyRecord | null>(null);
+  const [isEditingDetailSummary, setIsEditingDetailSummary] = useState(false);
+  const [detailSummaryEdit, setDetailSummaryEdit] = useState('');
 
   // Derived state
   const weekId = getWeekId(displayDate);
@@ -142,22 +144,29 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
   };
 
   const loadDayDetail = async (dateStr: string) => {
-    const record = weekDailyRecords.find(r => r.date === dateStr);
-    if (record) {
-        setSelectedDayDetail(record);
-    } else {
-        const fetched = await getDailyRecord(dateStr);
-        setSelectedDayDetail(fetched);
+    let record = weekDailyRecords.find(r => r.date === dateStr);
+    if (!record) {
+        record = await getDailyRecord(dateStr);
     }
+    setSelectedDayDetail(record);
+    setDetailSummaryEdit(record.daySummary || '');
+    setIsEditingDetailSummary(false);
+  };
+
+  const handleSaveDetailSummary = async () => {
+      if (!selectedDayDetail) return;
+      const updated = { ...selectedDayDetail, daySummary: detailSummaryEdit };
+      await saveDailyRecord(updated);
+      
+      // Update local states
+      setSelectedDayDetail(updated);
+      setWeekDailyRecords(prev => prev.map(r => r.date === updated.date ? updated : r));
+      setIsEditingDetailSummary(false);
   };
 
   if (loading || !plan || !editedPlan) return <div className="p-8 flex justify-center text-slate-500"><Loader2 className="animate-spin w-8 h-8"/></div>;
 
-  const chartData = days.map((day, i) => ({
-      name: day,
-      planned: 100, // Mock
-      completed: 0 // Mock
-  }));
+  const daysLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
   return (
     <div className="space-y-8 animate-fade-in relative">
@@ -206,7 +215,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Calendar className="w-5 h-5 text-brand-600" /> 每日计划</h3>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {weekDates.map((dateStr, idx) => {
-                    const dayName = days[idx];
+                    const dayName = daysLabels[idx];
                     const isToday = new Date().toISOString().split('T')[0] === dateStr;
                     const currentData = isEditing ? editedPlan : plan;
                     const tasks = currentData.dailyPresets[dateStr] || ['', ''];
@@ -273,9 +282,9 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                  <h3 className="font-bold text-slate-800 mb-4">本周每日回顾</h3>
                  <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                      {weekDailyRecords.filter(r => r.daySummary).length > 0 ? (
-                         weekDailyRecords.filter(r => r.daySummary).map(r => (
+                         weekDailyRecords.filter(r => r.daySummary).sort((a, b) => a.date.localeCompare(b.date)).map(r => (
                              <div key={r.date} className="text-sm border-l-2 border-brand-300 pl-3">
-                                 <div className="text-xs font-bold text-slate-500 mb-1">{r.date} {days[new Date(r.date).getDay() === 0 ? 6 : new Date(r.date).getDay() - 1]}</div>
+                                 <div className="text-xs font-bold text-slate-500 mb-1">{r.date} {daysLabels[new Date(r.date).getDay() === 0 ? 6 : new Date(r.date).getDay() - 1]}</div>
                                  <p className="text-slate-700 line-clamp-4 hover:line-clamp-none transition-all">{r.daySummary}</p>
                              </div>
                          ))
@@ -287,7 +296,7 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
          </div>
       </div>
 
-      {/* Day Detail Modal (Read Only) */}
+      {/* Day Detail Modal */}
       {selectedDayDetail && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[1px]" onClick={() => setSelectedDayDetail(null)}>
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col mx-4 animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
@@ -299,22 +308,56 @@ const WeeklyView: React.FC<WeeklyViewProps> = ({ currentDate }) => {
                   </div>
                   <div className="p-6 overflow-y-auto space-y-6">
                       <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                          <h4 className="text-blue-900 font-bold mb-2 flex items-center gap-2"><BookOpen className="w-4 h-4"/> 每日总结</h4>
-                          <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">{selectedDayDetail.daySummary || <span className="text-slate-400 italic">未填写总结</span>}</p>
+                          <div className="flex justify-between items-center mb-2">
+                             <h4 className="text-blue-900 font-bold flex items-center gap-2"><BookOpen className="w-4 h-4"/> 每日总结</h4>
+                             {!isEditingDetailSummary ? (
+                                <button onClick={() => setIsEditingDetailSummary(true)} className="p-1 hover:bg-blue-100 rounded text-blue-600 transition-colors" title="编辑总结">
+                                    <Edit3 className="w-4 h-4"/>
+                                </button>
+                             ) : (
+                                <div className="flex gap-2">
+                                    <button onClick={() => setIsEditingDetailSummary(false)} className="p-1 hover:bg-red-100 rounded text-red-500 transition-colors">
+                                        <X className="w-4 h-4"/>
+                                    </button>
+                                    <button onClick={handleSaveDetailSummary} className="p-1 hover:bg-green-100 rounded text-green-600 transition-colors">
+                                        <CheckCircle2 className="w-4 h-4"/>
+                                    </button>
+                                </div>
+                             )}
+                          </div>
+                          
+                          {isEditingDetailSummary ? (
+                              <textarea 
+                                autoFocus
+                                value={detailSummaryEdit}
+                                onChange={(e) => setDetailSummaryEdit(e.target.value)}
+                                className="w-full h-32 p-3 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none resize-none"
+                                placeholder="填写今日复盘总结..."
+                              />
+                          ) : (
+                              <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed" onClick={() => setIsEditingDetailSummary(true)}>
+                                  {selectedDayDetail.daySummary || <span className="text-slate-400 italic cursor-pointer">点击填写今日总结</span>}
+                              </p>
+                          )}
                       </div>
+                      
                       {/* Detailed Check Logs */}
                       <div>
                           <h4 className="text-slate-800 font-bold mb-3 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-brand-500"/> 执行与检查</h4>
                           <div className="space-y-2">
-                            {selectedDayDetail.timeBlocks.filter(b => b.do.actualContent || b.check.comment).map(b => (
-                                <div key={b.id} className="grid grid-cols-12 gap-2 text-sm border-b border-slate-50 pb-2">
-                                    <div className="col-span-2 font-mono text-slate-400 font-bold">{b.time}</div>
-                                    <div className="col-span-10 space-y-1">
-                                        {b.do.actualContent && <div className="bg-blue-50/50 p-1 rounded text-slate-700"><span className="text-[10px] text-blue-400 font-bold mr-1">DO</span>{b.do.actualContent}</div>}
-                                        {b.check.comment && <div className="bg-yellow-50/50 p-1 rounded text-slate-700"><span className="text-[10px] text-yellow-500 font-bold mr-1">CHK</span>{b.check.comment}</div>}
+                            {selectedDayDetail.timeBlocks.filter(b => b.do.actualContent || b.check.comment).length > 0 ? (
+                                selectedDayDetail.timeBlocks.filter(b => b.do.actualContent || b.check.comment).map(b => (
+                                    <div key={b.id} className="grid grid-cols-12 gap-2 text-sm border-b border-slate-50 pb-2">
+                                        <div className="col-span-2 font-mono text-slate-400 font-bold">{b.time}</div>
+                                        <div className="col-span-10 space-y-1">
+                                            {b.do.actualContent && <div className="bg-blue-50/50 p-1 rounded text-slate-700"><span className="text-[10px] text-blue-400 font-bold mr-1">DO</span>{b.do.actualContent}</div>}
+                                            {b.check.comment && <div className="bg-yellow-50/50 p-1 rounded text-slate-700"><span className="text-[10px] text-yellow-500 font-bold mr-1">CHK</span>{b.check.comment}</div>}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            ) : (
+                                <div className="text-center text-slate-400 text-xs py-4">当日无具体的执行或检查记录</div>
+                            )}
                           </div>
                       </div>
                   </div>
